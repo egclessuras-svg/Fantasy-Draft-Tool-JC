@@ -30,8 +30,8 @@ A comprehensive fantasy football draft assistant with custom projections, simula
 Set these in your Railway project settings:
 
 ```
-SUPABASE_URL=https://arlovpdltkdlrkkmtigv.supabase.co
-SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFybG92cGRsdGtkbHJra210aWd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1MjgyMDEsImV4cCI6MjA3MDEwNDIwMX0.PbTsyL_TmzNgYPxOPfAQPYI6MykbTNnW0sT5epwxTtg
+SUPABASE_URL=your-supabase-project-url
+SUPABASE_KEY=your-supabase-anon-key
 FLASK_SECRET_KEY=your-secret-key-here
 ```
 
@@ -69,7 +69,7 @@ Ensure your Supabase project has the following tables:
 pip install -r requirements.txt
 
 # Set environment variables
-export SUPABASE_URL=https://arlovpdltkdlrkkmtigv.supabase.co
+export SUPABASE_URL=your-supabase-project-url
 export SUPABASE_KEY=your-supabase-key
 export FLASK_SECRET_KEY=your-secret-key
 

@@ -687,44 +687,6 @@ def auth_login():
         if not email or not password:
             return jsonify({'success': False, 'error': 'Email and password required'}), 400
         
-        # Special handling for known user credentials
-        if email == 'egclessuras@gmail.com' and password in ['JohnWall2', 'JohnWall2!']:
-            # Get user from Supabase users table
-            if supabase:
-                try:
-                    result = supabase.table('users').select('*').eq('email', email).execute()
-                    if result.data:
-                        user = result.data[0]
-                        session['user_id'] = user['id']
-                        session['user_email'] = email
-                        return jsonify({
-                            'success': True,
-                            'message': 'Login successful',
-                            'user': {
-                                'id': user['id'],
-                                'email': email
-                            }
-                        })
-                    else:
-                        return jsonify({'success': False, 'error': 'User not found'}), 401
-                except Exception as e:
-                    print(f"Error checking user in Supabase: {e}")
-                    return jsonify({'success': False, 'error': 'Database error'}), 500
-            else:
-                # Fallback for development
-                import uuid
-                user_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, email))
-                session['user_id'] = user_uuid
-                session['user_email'] = email
-                return jsonify({
-                    'success': True,
-                    'message': 'Login successful (development mode)',
-                    'user': {
-                        'id': user_uuid,
-                        'email': email
-                    }
-                })
-        
         if not supabase:
             # Development mode - generate unique user ID based on email
             import uuid
