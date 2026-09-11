@@ -1371,26 +1371,29 @@ def _replay_trajectory_with_candidate(assistant, candidate, trajectory, projecti
             for player in assistant.available_players:
                 if player in taken:
                     continue
-                need_bonus = 0
                 position_need = roster_needs.get(player.position, 0)
 
                 if position_need > 0:
-                    need_bonus = 100
+                    # Fix for issue #1: this used to fetch the projection and then
+                    # score purely by static ADP, ignoring it. Now the projection is
+                    # what drives the pick, same as everywhere else in the app.
+                    player_projected = projection_cache.get(player.name, get_player_projection(player.name, selected_scoring_format))
+                    player_value = player_projected + 100 + random.uniform(-5, 5)
                 elif roster_needs.get('BN', 0) > 0:
-                    if player.position in ['RB', 'WR', 'TE']:
-                        need_bonus = calculate_bench_value_for_player_web_projections(player, sim_roster[user_team], projection_cache)
-                    elif player.position in ['K', 'DST']:
-                        continue
+                    # Bench-tier picks are valued by their (position-appropriate,
+                    # depth-discounted) bench value ALONE, not full projected points
+                    # plus a bonus - a full-points-plus-bonus score let a QB (whose
+                    # raw point totals sit far above any other position at every
+                    # depth) out-bid a properly-discounted bench RB/WR every time,
+                    # so the simulated team kept hoarding backup QBs instead of
+                    # filling bench RB/WR/TE. Applies to QB the same way it already
+                    # did to RB/WR/TE; K/DST still never make sense as bench stashes.
+                    if player.position in ['QB', 'RB', 'WR', 'TE']:
+                        player_value = calculate_bench_value_for_player_web_projections(player, sim_roster[user_team], projection_cache) + random.uniform(-5, 5)
                     else:
-                        need_bonus = 20
+                        continue
                 else:
                     continue
-
-                # Fix for issue #1: this used to fetch the projection and then score
-                # purely by static ADP, ignoring it. Now the projection is what drives
-                # the pick, same as everywhere else in the app.
-                player_projected = projection_cache.get(player.name, get_player_projection(player.name, selected_scoring_format))
-                player_value = player_projected + need_bonus + random.uniform(-5, 5)
 
                 if player_value > best_score:
                     best_score = player_value
