@@ -1165,7 +1165,7 @@ def get_recommendations():
     """Get AI draft recommendations (returns cached results if available)."""
     try:
         assistant = get_draft_assistant()
-        num_recommendations = request.args.get('num', 5, type=int)
+        num_recommendations = request.args.get('num', 10, type=int)
         
         # Check if draft is initialized and user position is set
         if not assistant.draft_initialized or assistant.user_draft_position == 0:
@@ -1230,7 +1230,7 @@ def run_simulation():
     """Run simulations using web app's projection system and cache the results."""
     try:
         assistant = get_draft_assistant()
-        num_recommendations = request.args.get('num', 5, type=int)
+        num_recommendations = request.args.get('num', 10, type=int)
         
         # Check if draft is initialized and user position is set
         if not assistant.draft_initialized or assistant.user_draft_position == 0:
@@ -1267,119 +1267,204 @@ def run_simulation():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-def run_simulations_with_web_projections(assistant, num_recommendations=40):
-    """Run simulations using web app's projection system."""
+NUM_OPPONENT_TRAJECTORIES = 40
+VORP_CANDIDATE_POOL_SIZE = 15
+
+
+def _position_starter_slots(assistant, position):
+    """Starting slots for a position. roster_constraints keys defense as 'DEF' while
+    players are tagged 'DST' - this centralizes that translation."""
+    key = 'DEF' if position == 'DST' else position
+    return assistant.roster_constraints.get(key, 1)
+
+
+def _compute_vorp_candidates(assistant, available_players, projection_cache, pool_size=VORP_CANDIDATE_POOL_SIZE):
+    """Rank available players by value over replacement (projected points above the
+    last startable player at their position), instead of only ever considering the
+    single highest-projected player at each position. This lets a strong RB2 or WR2
+    compete for a recommendation slot against the position's nominal #1."""
+    by_position = {}
+    for player in available_players:
+        by_position.setdefault(player.position, []).append(player)
+
+    flex_slots = assistant.roster_constraints.get('FLEX', 0)
+    scored = []
+    for position, players in by_position.items():
+        players.sort(key=lambda p: projection_cache.get(p.name, p.projected_points), reverse=True)
+        starters = _position_starter_slots(assistant, position)
+        if position in ('RB', 'WR', 'TE'):
+            starters += flex_slots / 3.0  # rough share of the FLEX spot(s)
+        replacement_rank = max(1, min(len(players), round(assistant.num_teams * starters)))
+        replacement_points = projection_cache.get(
+            players[replacement_rank - 1].name, players[replacement_rank - 1].projected_points
+        )
+        for player in players:
+            projected = projection_cache.get(player.name, player.projected_points)
+            scored.append((projected - replacement_points, player))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [player for _, player in scored[:pool_size]]
+
+
+def _generate_opponent_trajectories(assistant, num_trajectories=NUM_OPPONENT_TRAJECTORIES):
+    """Pre-generate `num_trajectories` independent 'rest of draft' pick sequences for
+    every OTHER team, using the existing ADP+reach heuristic. Generated once per
+    recommendation request and shared across every candidate evaluated below - a
+    Monte Carlo variance-reduction technique ('common random numbers') so candidates
+    are compared against the same hypothetical boards instead of independently noisy
+    ones, which is what let us afford more candidates without more total simulations.
+    The user's own turns are left as placeholders; each candidate replay fills those in.
+    """
+    user_team = assistant.teams[assistant.user_draft_position - 1]
+    base_available = set(assistant.available_players)
+    trajectories = []
+
+    for _ in range(num_trajectories):
+        available = set(base_available)
+        picks = []
+        pick = assistant.current_pick
+        while pick <= assistant.total_picks:
+            if pick <= len(assistant.draft_order):
+                _, team_id = assistant.draft_order[pick - 1]
+                team_name = assistant.teams[team_id - 1]
+            else:
+                team_name = assistant.teams[(pick - 1) % assistant.num_teams]
+
+            if team_name == user_team:
+                picks.append((team_name, None))
+            elif available:
+                sorted_available = sorted(available, key=lambda p: p.adp)
+                if random.random() < 0.7:
+                    idx = 0
+                else:
+                    idx = min(random.randint(0, 5), len(sorted_available) - 1)
+                picked = sorted_available[idx]
+                available.discard(picked)
+                picks.append((team_name, picked))
+            else:
+                picks.append((team_name, None))
+            pick += 1
+        trajectories.append(picks)
+
+    return trajectories
+
+
+def _replay_trajectory_with_candidate(assistant, candidate, trajectory, projection_cache):
+    """Cheaply replay one pre-generated trajectory with `candidate` drafted at the
+    current pick. Opponent picks are read straight from the trajectory; the user's
+    own later turns use the pick heuristic below (which - unlike before - actually
+    uses projected points, see the fix for issue #1). If a trajectory's pre-baked
+    pick for some team was already taken (by the candidate, or by one of the user's
+    own simulated picks), that team's turn is simply skipped rather than
+    re-simulated: a deliberate simplification that, at worst, under-fills one bench
+    spot on a rare collision - negligible effect on the resulting score."""
+    user_team = assistant.teams[assistant.user_draft_position - 1]
+    sim_roster = {team: list(roster) for team, roster in assistant.drafted_players.items()}
+    sim_roster[user_team].append(candidate)
+    taken = {candidate}
+
+    for team_name, trajectory_player in trajectory:
+        if team_name == user_team:
+            roster_needs = get_roster_needs_for_simulation_web_projections(assistant, sim_roster[user_team], projection_cache)
+            best_player, best_score = None, float('-inf')
+
+            for player in assistant.available_players:
+                if player in taken:
+                    continue
+                need_bonus = 0
+                position_need = roster_needs.get(player.position, 0)
+
+                if position_need > 0:
+                    need_bonus = 100
+                elif roster_needs.get('BN', 0) > 0:
+                    if player.position in ['RB', 'WR', 'TE']:
+                        need_bonus = calculate_bench_value_for_player_web_projections(player, sim_roster[user_team], projection_cache)
+                    elif player.position in ['K', 'DST']:
+                        continue
+                    else:
+                        need_bonus = 20
+                else:
+                    continue
+
+                # Fix for issue #1: this used to fetch the projection and then score
+                # purely by static ADP, ignoring it. Now the projection is what drives
+                # the pick, same as everywhere else in the app.
+                player_projected = projection_cache.get(player.name, get_player_projection(player.name, selected_scoring_format))
+                player_value = player_projected + need_bonus + random.uniform(-5, 5)
+
+                if player_value > best_score:
+                    best_score = player_value
+                    best_player = player
+
+            if best_player:
+                sim_roster[user_team].append(best_player)
+                taken.add(best_player)
+        else:
+            if trajectory_player is None or trajectory_player in taken:
+                continue  # collision with an earlier pick in this replay - skip this team's turn
+            sim_roster[team_name].append(trajectory_player)
+            taken.add(trajectory_player)
+
+    return calculate_roster_value_for_simulation_web_projections(assistant, sim_roster[user_team], projection_cache)
+
+
+def run_simulations_with_web_projections(assistant, num_recommendations=10):
+    """Run simulations using web app's projection system.
+
+    Builds a broader candidate pool by value-over-replacement (VORP) instead of only
+    ever simulating the single highest-projected player at each position, then scores
+    every candidate against the same shared set of pre-generated 'rest of draft'
+    trajectories (common random numbers) rather than each candidate drawing its own
+    independent randomness. That combination is what lets more players get a real
+    simulated score instead of a handful being simulated and the rest being a crude
+    linear guess off of them, without a proportional blow-up in total simulations run.
+    """
     try:
         if not assistant or not assistant.draft_initialized or assistant.user_draft_position == 0:
             print("Draft not initialized or assistant is None or user position not set")
             return []
-        
+
         current_pick_info = assistant.get_current_pick_info()
         if not current_pick_info or not current_pick_info.get("is_user_turn", False):
             print("Not user's turn")
             return []
-        
-        recommendations = []
-        
-        # Pre-calculate all projections to avoid repeated calls
+
         available_players = assistant.get_available_players()
         if not available_players:
             print("No available players")
             return []
-            
-        projection_cache = {}
-        players_with_projections = []
-        
+
         print("Pre-calculating projections for all available players...")
         print("Using OALFFL rankings projections (custom projections disabled)")
-        
+
+        projection_cache = {}
         for player in available_players:
-            # This will use custom projections from Supabase if available
-            projected_points = get_player_projection(player.name, selected_scoring_format)
-            projection_cache[player.name] = projected_points
-            players_with_projections.append({
-                'player': player,
-                'projected_points': projected_points
-            })
-        
-        # Sort by web app's projection system (including custom projections)
-        sorted_players_with_projections = sorted(players_with_projections, key=lambda x: x['projected_points'], reverse=True)
-        sorted_players = [item['player'] for item in sorted_players_with_projections]
-        
-        # Get top 1 player at each position (by web app's projections) - UPDATED to use current available players
-        top_players_by_position = {}
-        for position in ['QB', 'RB', 'WR', 'TE', 'K', 'DST']:
-            # Handle DST position
-            if position == 'DST':
-                position_players = [p for p in sorted_players if p.position == 'DST']
-            else:
-                position_players = [p for p in sorted_players if p.position == position]
-            if position_players:
-                top_players_by_position[position] = position_players[0]  # Only the #1 player
-                web_projection = projection_cache.get(position_players[0].name, position_players[0].projected_points)
-                print(f"Top {position}: {position_players[0].name} ({web_projection} pts)")
-        
-        # Pre-calculate roster needs once
+            projection_cache[player.name] = get_player_projection(player.name, selected_scoring_format)
+
         current_team = assistant._get_current_team()
         if not current_team:
             print("Could not get current team")
             return []
-            
+
         current_roster = assistant.drafted_players.get(current_team, [])
         roster_needs = get_roster_needs_for_simulation_web_projections(assistant, current_roster, projection_cache)
-        
-        # Run simulations only for the top player at each position
+
+        candidates = _compute_vorp_candidates(assistant, available_players, projection_cache)
+        print(f"Evaluating {len(candidates)} candidates by value-over-replacement...")
+
+        trajectories = _generate_opponent_trajectories(assistant)
+        print(f"Generated {len(trajectories)} shared opponent trajectories")
+
         player_scores = {}
-        
-        print(f"Running simulations for top 1 player at each position using web app projections...")
-        
-        for position, top_player in top_players_by_position.items():
-            scores = []
-            successful_sims = 0
-            
-            # Run 40 simulations for the top player at this position (increased for better accuracy)
-            for sim in range(40):
-                try:
-                    score = simulate_draft_with_player_web_projections(assistant, top_player, projection_cache)
-                    scores.append(score)
-                    successful_sims += 1
-                except Exception as e:
-                    print(f"Simulation {sim + 1} failed for {top_player.name}: {e}")
-                    continue
-            
-            if successful_sims > 0:
-                avg_score = sum(scores) / len(scores)
-                player_scores[top_player] = avg_score
-                print(f"{top_player.name} ({position}): {successful_sims} simulations, avg score: {avg_score:.1f}")
-            else:
-                print(f"All simulations failed for {top_player.name}")
-        
-        # Now calculate values for 4 other players at each position based on projected points difference
-        for position in ['QB', 'RB', 'WR', 'TE', 'K', 'DST']:
-            if position not in top_players_by_position:
-                continue
-                
-            top_player = top_players_by_position[position]
-            top_player_score = player_scores.get(top_player, 0)
-            top_player_projected = projection_cache[top_player.name]
-            
-            # Get next 4 players at this position
-            if position == 'DST':
-                position_players = [p for p in sorted_players if p.position == 'DST']
-            else:
-                position_players = [p for p in sorted_players if p.position == position]
-            other_players = position_players[1:5]  # Skip the top player, take next 4
-            
-            for other_player in other_players:
-                other_projected = projection_cache[other_player.name]
-                projected_diff = top_player_projected - other_projected
-                
-                # Calculate value: top_player_value - projected_points_difference
-                calculated_value = top_player_score - projected_diff
-                player_scores[other_player] = calculated_value
-                
-                print(f"{other_player.name} ({position}): calculated value: {calculated_value:.1f} (based on {top_player.name})")
-        
+        for candidate in candidates:
+            scores = [
+                _replay_trajectory_with_candidate(assistant, candidate, trajectory, projection_cache)
+                for trajectory in trajectories
+            ]
+            avg_score = sum(scores) / len(scores)
+            player_scores[candidate] = avg_score
+            print(f"{candidate.name} ({candidate.position}): {len(scores)} sims, avg score: {avg_score:.1f}")
+
         # Apply bench value adjustments to prioritize backup RBs/WRs over kickers
         adjusted_scores = {}
         for player, score in player_scores.items():
@@ -1389,30 +1474,26 @@ def run_simulations_with_web_projections(assistant, num_recommendations=40):
                 would_be_starter = True
             elif player.position in ['RB', 'WR', 'TE'] and roster_needs.get('FLEX', 0) > 0:
                 would_be_starter = True
-            
+
             # Apply bench value bonus for backup RBs/WRs/TEs over kickers
             if not would_be_starter and player.position in ['RB', 'WR', 'TE']:
-                # This player would be a bench player - add bench value bonus
                 bench_bonus = calculate_bench_value_for_player_web_projections(player, current_roster, projection_cache)
                 adjusted_score = score + bench_bonus
                 print(f"{player.name} ({player.position}): bench bonus {bench_bonus:.1f}, adjusted score: {adjusted_score:.1f}")
             elif player.position == 'K' and not would_be_starter:
-                # Kickers on bench have 0 value - heavily penalize
                 adjusted_score = score - 1000  # Large penalty for backup K
                 print(f"{player.name} ({player.position}): backup penalty, adjusted score: {adjusted_score:.1f}")
             elif player.position == 'DST' and not would_be_starter:
-                # DST on bench - no penalty for now to test
                 adjusted_score = score  # No penalty for backup DST
                 print(f"{player.name} ({player.position}): no penalty, adjusted score: {adjusted_score:.1f}")
             else:
                 adjusted_score = score
-            
+
             adjusted_scores[player] = adjusted_score
-        
+
         # Sort by adjusted value (highest first)
         sorted_players = sorted(adjusted_scores.items(), key=lambda x: x[1], reverse=True)
-        
-        # Convert to recommendations format
+
         recommendations = []
         for player, score in sorted_players[:num_recommendations]:
             recommendations.append({
@@ -1424,139 +1505,14 @@ def run_simulations_with_web_projections(assistant, num_recommendations=40):
                 'expected_season_score': score,
                 'is_customized': False  # Custom projections disabled
             })
-        
+
         return recommendations
-        
+
     except Exception as e:
         print(f"Error in run_simulations_with_web_projections: {e}")
         import traceback
         traceback.print_exc()
         return []
-
-def simulate_draft_with_player_web_projections(assistant, candidate_player, projection_cache=None):
-    """Simulate draft with player using web app's projection system."""
-    # Save current state
-    original_drafted_players = {team: roster.copy() for team, roster in assistant.drafted_players.items()}
-    original_available_players = set(assistant.available_players)
-    original_pick = assistant.current_pick
-    
-    # Setup sim state
-    sim_drafted_players = {team: roster.copy() for team, roster in assistant.drafted_players.items()}
-    sim_available_players = set(assistant.available_players)
-    sim_pick = assistant.current_pick
-    
-    try:
-        # Draft the candidate player
-        team_name = assistant.teams[assistant.user_draft_position - 1]
-        sim_drafted_players[team_name].append(candidate_player)
-        sim_available_players.remove(candidate_player)
-        sim_pick += 1
-        
-        # Simulate the rest of the draft using ADP
-        while sim_pick <= assistant.total_picks:
-            # Determine which team is picking using snake draft logic
-            if sim_pick <= len(assistant.draft_order):
-                round_num, team_id = assistant.draft_order[sim_pick - 1]
-                team_name = assistant.teams[team_id - 1]
-            else:
-                # Fallback for picks beyond draft order
-                team_index = (sim_pick - 1) % assistant.num_teams
-                team_name = assistant.teams[team_index]
-            
-            # Check if team has roster space
-            team_roster = sim_drafted_players[team_name]
-            total_roster_size = sum(assistant.roster_constraints.values())
-            
-            if len(team_roster) >= total_roster_size:
-                # Team is full, skip this pick
-                sim_pick += 1
-                continue
-            
-            # If it's the user's turn, use smart strategy
-            if sim_pick <= len(assistant.draft_order):
-                round_num, team_id = assistant.draft_order[sim_pick - 1]
-                is_user_turn = (team_id == assistant.user_draft_position)
-            else:
-                # Fallback for picks beyond draft order
-                team_index = (sim_pick - 1) % assistant.num_teams
-                is_user_turn = (team_index == assistant.user_draft_position - 1)
-            
-            if is_user_turn:
-                # Get roster needs for user team
-                roster_needs = get_roster_needs_for_simulation_web_projections(assistant, team_roster, projection_cache)
-                
-                # Find best available player considering roster needs and bench constraints
-                best_player = None
-                best_score = -1
-                
-                for player in sorted(sim_available_players, key=lambda p: p.adp):
-                    # Check if this player fills a need
-                    need_bonus = 0
-                    position_need = roster_needs.get(player.position, 0)
-                    
-                    if position_need > 0:
-                        # High bonus for filling a starting position need
-                        need_bonus = 100
-                    elif roster_needs.get('BN', 0) > 0:
-                        # Check if this player would be a valuable bench player
-                        if player.position in ['RB', 'WR', 'TE']:
-                            # Calculate bench value for this player
-                            bench_value = calculate_bench_value_for_player_web_projections(player, team_roster, projection_cache)
-                            need_bonus = bench_value  # Use actual bench value
-                        elif player.position in ['K', 'DST']:
-                            # Kickers/DST on bench have 0 value - skip them
-                            continue
-                        else:
-                            # QB on bench - moderate value
-                            need_bonus = 20
-                    else:
-                        # No roster space available
-                        continue
-                    
-                    # Calculate player value using cached projection
-                    player_projected = projection_cache.get(player.name, get_player_projection(player.name, selected_scoring_format))
-                    player_value = (200 - player.adp) + need_bonus + random.randint(-10, 10)
-                    
-                    if player_value > best_score:
-                        best_score = player_value
-                        best_player = player
-                
-                if best_player:
-                    sim_drafted_players[team_name].append(best_player)
-                    sim_available_players.remove(best_player)
-                else:
-                    # No suitable player found, skip this pick
-                    pass
-            else:
-                # Other teams use ADP with some variance
-                available_sorted = sorted(sim_available_players, key=lambda p: p.adp)
-                if available_sorted:
-                    # 70% chance to follow ADP closely, 30% chance for variance
-                    if random.random() < 0.7:
-                        pick_index = 0
-                    else:
-                        pick_index = min(random.randint(0, 5), len(available_sorted) - 1)
-                    
-                    picked_player = available_sorted[pick_index]
-                    sim_drafted_players[team_name].append(picked_player)
-                    sim_available_players.remove(picked_player)
-            
-            sim_pick += 1
-        
-        # Calculate season score for user team using web app's projection system
-        user_roster = sim_drafted_players[assistant.teams[assistant.user_draft_position - 1]]
-        season_score = calculate_roster_value_for_simulation_web_projections(assistant, user_roster, projection_cache)
-        
-        return season_score
-        
-    except Exception as e:
-        print(f"Error in simulation for {candidate_player.name}: {e}")
-        return 0.0
-    finally:
-        # Restore original state
-        assistant.drafted_players = original_drafted_players
-        assistant.available_players = list(original_available_players)
-        assistant.current_pick = original_pick
 
 def calculate_roster_value_for_simulation_web_projections(assistant, roster, projection_cache=None):
     """Calculate roster value for simulation using web app's projection system."""

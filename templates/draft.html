@@ -765,7 +765,7 @@
             getRecsBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
             
             try {
-                const response = await fetch('/api/recommendations?num=5');
+                const response = await fetch('/api/recommendations?num=10');
                 const data = await response.json();
                 
                 if (data.success) {

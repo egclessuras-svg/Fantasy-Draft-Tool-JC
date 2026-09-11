@@ -1411,12 +1411,12 @@
             
             try {
                 // First run the simulation
-                const simResponse = await fetch('/api/run_simulation?num=5', { method: 'POST' });
+                const simResponse = await fetch('/api/run_simulation?num=10', { method: 'POST' });
                 const simData = await simResponse.json();
                 
                 if (simData.success) {
                     // Then get the cached recommendations
-                    const response = await fetch('/api/recommendations?num=5');
+                    const response = await fetch('/api/recommendations?num=10');
                     const data = await response.json();
                     
                     if (data.success) {
