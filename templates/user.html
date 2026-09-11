@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - PickProphet</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: white;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .main-container {
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            border-radius: 10px 10px 0 0;
+            margin-right: 5px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+        .nav-tabs .nav-link:hover {
+            background: #f8f9fa;
+            color: #495057;
+        }
+        .content-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+            margin-bottom: 30px;
+        }
+        .username-section {
+            text-align: center;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        .username-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        .username-subtitle {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+        .drafts-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f8f9fa;
+        }
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #495057;
+            margin: 0;
+        }
+        .draft-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+        .draft-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .draft-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+        .draft-name {
+            font-weight: 600;
+            color: #495057;
+            font-size: 1.2rem;
+        }
+        .draft-date {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .draft-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+        .draft-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .draft-roster {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+        .draft-roster.show {
+            display: block;
+        }
+        .roster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .player-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .player-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .player-name {
+            font-weight: 600;
+            color: #495057;
+        }
+        .player-position {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .player-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .expand-icon {
+            transition: transform 0.3s ease;
+        }
+        .expand-icon.expanded {
+            transform: rotate(180deg);
+        }
+        .roster-minimal {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .position-group {
+            margin-bottom: 20px;
+        }
+        .position-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .player-minimal {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .player-minimal .player-name {
+            font-weight: 500;
+            color: #495057;
+        }
+        .player-minimal .player-team {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .btn-custom {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            font-size: 0.9rem;
+        }
+        .btn-primary-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+        .btn-danger-custom {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+        }
+        .btn-danger-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+            color: white;
+        }
+        .empty-drafts {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+        .empty-drafts i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #dee2e6;
+        }
+        .empty-drafts h4 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        .empty-drafts p {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- Header Banner -->
+        <div class="header-banner">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="mb-0"><i class="fas fa-user me-2"></i>User Profile</h1>
+                    <p class="mb-0">Manage your account and view your completed drafts</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-outline-light" onclick="logout()">
+                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" href="/app" role="tab">
+                            <i class="fas fa-drafting-compass me-2"></i>Draft Room
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" href="/pre-draft" role="tab">
+                            <i class="fas fa-chart-line me-2"></i>Pre Draft
+                        </a>
+                    </li>
+                    <li class="nav-item ms-auto" role="presentation">
+                        <a class="nav-link active" href="/user" role="tab">
+                            <i class="fas fa-user me-2"></i>User
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <!-- Username Section -->
+        <div class="username-section">
+            <div class="username-display" id="usernameDisplay">
+                <i class="fas fa-user-circle me-3"></i>Loading...
+            </div>
+            <div class="username-subtitle">Welcome to PickProphet</div>
+        </div>
+
+        <!-- Completed Drafts Section -->
+        <div class="content-card">
+            <div class="drafts-section">
+                <div class="section-header">
+                    <h3 class="section-title">
+                        <i class="fas fa-trophy me-2"></i>Completed Drafts
+                    </h3>
+                </div>
+                <div id="completedDraftsContainer">
+                    <div class="empty-drafts">
+                        <i class="fas fa-trophy"></i>
+                        <h4>No Completed Drafts</h4>
+                        <p>You haven't completed any drafts yet. Start drafting to see your completed drafts here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Load user data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUserData();
+        });
+
+        async function loadUserData() {
+            try {
+                // Load username
+                await loadUsername();
+                
+                // Load completed drafts
+                await loadCompletedDrafts();
+                
+            } catch (error) {
+                showAlert('Error loading user data', 'danger');
+            }
+        }
+
+        async function loadUsername() {
+            try {
+                const response = await fetch('/api/user/info');
+                const data = await response.json();
+                
+                if (data.success && data.user) {
+                    document.getElementById('usernameDisplay').innerHTML = 
+                        `<i class="fas fa-user-circle me-3"></i>${data.user.username || 'User'}`;
+                } else {
+                    document.getElementById('usernameDisplay').innerHTML = 
+                        `<i class="fas fa-user-circle me-3"></i>User`;
+                }
+            } catch (error) {
+                console.error('Error loading username:', error);
+                document.getElementById('usernameDisplay').innerHTML = 
+                    `<i class="fas fa-user-circle me-3"></i>User`;
+            }
+        }
+
+        async function loadCompletedDrafts() {
+            try {
+                const response = await fetch('/api/user/completed_drafts');
+                const data = await response.json();
+                
+                const container = document.getElementById('completedDraftsContainer');
+                
+                if (data.success && data.drafts && data.drafts.length > 0) {
+                    container.innerHTML = '';
+                    data.drafts.forEach(draft => {
+                        const draftElement = createDraftElement(draft);
+                        container.appendChild(draftElement);
+                    });
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-drafts">
+                            <i class="fas fa-trophy"></i>
+                            <h4>No Completed Drafts</h4>
+                            <p>You haven't completed any drafts yet. Start drafting to see your completed drafts here.</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Error loading completed drafts:', error);
+                const container = document.getElementById('completedDraftsContainer');
+                container.innerHTML = `
+                    <div class="empty-drafts">
+                        <i class="fas fa-trophy"></i>
+                        <h4>No Completed Drafts</h4>
+                        <p>You haven't completed any drafts yet. Start drafting to see your completed drafts here.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function createDraftElement(draft) {
+            const div = document.createElement('div');
+            div.className = 'draft-item';
+            div.innerHTML = `
+                <div class="draft-header" onclick="toggleDraftRoster('${draft.session_id}')">
+                    <div>
+                        <span class="draft-name">${draft.session_name || 'Untitled Draft'}</span>
+                        <span class="draft-date">${new Date(draft.completed_at || draft.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-chevron-down expand-icon" id="expand-${draft.session_id}"></i>
+                    </div>
+                </div>
+                <div class="draft-stats">
+                    <span><i class="fas fa-users me-1"></i>${draft.total_players || 0} players drafted</span>
+                    <span><i class="fas fa-calendar me-1"></i>Completed ${new Date(draft.completed_at || draft.created_at).toLocaleDateString()}</span>
+                    <span><i class="fas fa-clock me-1"></i>${draft.draft_duration || 'N/A'}</span>
+                </div>
+                <div class="draft-actions">
+                    <button class="btn btn-custom btn-primary-custom" onclick="viewDraft('${draft.session_id}')">
+                        <i class="fas fa-eye me-1"></i>View Draft
+                    </button>
+                    <button class="btn btn-custom btn-danger-custom" onclick="deleteDraft('${draft.session_id}')">
+                        <i class="fas fa-trash me-1"></i>Delete
+                    </button>
+                </div>
+                <div class="draft-roster" id="roster-${draft.session_id}">
+                    <div class="text-center">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading roster...</p>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        function toggleDraftRoster(sessionId) {
+            const rosterDiv = document.getElementById(`roster-${sessionId}`);
+            const expandIcon = document.getElementById(`expand-${sessionId}`);
+            
+            if (rosterDiv.classList.contains('show')) {
+                // Hide roster
+                rosterDiv.classList.remove('show');
+                expandIcon.classList.remove('expanded');
+            } else {
+                // Show roster
+                rosterDiv.classList.add('show');
+                expandIcon.classList.add('expanded');
+                loadDraftRoster(sessionId);
+            }
+        }
+
+        async function loadDraftRoster(sessionId) {
+            try {
+                const response = await fetch(`/api/draft/${sessionId}`);
+                const data = await response.json();
+                
+                const rosterDiv = document.getElementById(`roster-${sessionId}`);
+                
+                if (data.success && data.draft) {
+                    const draft = data.draft;
+                    const players = draft.drafted_players || [];
+                    
+                    if (players.length > 0) {
+                        // Organize players by position
+                        const playersByPosition = {
+                            'QB': [],
+                            'RB': [],
+                            'WR': [],
+                            'TE': [],
+                            'K': [],
+                            'DEF': [],
+                            'BN': []
+                        };
+                        
+                        // Sort players into positions
+                        players.forEach(player => {
+                            const pos = player.position;
+                            if (pos === 'QB') playersByPosition.QB.push(player);
+                            else if (pos === 'RB') playersByPosition.RB.push(player);
+                            else if (pos === 'WR') playersByPosition.WR.push(player);
+                            else if (pos === 'TE') playersByPosition.TE.push(player);
+                            else if (pos === 'K') playersByPosition.K.push(player);
+                            else if (pos === 'DST') playersByPosition.DEF.push(player);
+                            else playersByPosition.BN.push(player);
+                        });
+                        
+                        let rosterHtml = '<h5 class="mb-3"><i class="fas fa-users me-2"></i>Roster</h5>';
+                        rosterHtml += '<div class="roster-minimal">';
+                        
+                        // Display each position
+                        const positions = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'BN'];
+                        positions.forEach(pos => {
+                            const players = playersByPosition[pos];
+                            if (players.length > 0) {
+                                rosterHtml += `<div class="position-group mb-3">`;
+                                rosterHtml += `<h6 class="position-title">${pos}</h6>`;
+                                players.forEach(player => {
+                                    rosterHtml += `
+                                        <div class="player-minimal">
+                                            <span class="player-name">${player.name}</span>
+                                            <span class="player-team">${player.team}</span>
+                                        </div>
+                                    `;
+                                });
+                                rosterHtml += '</div>';
+                            }
+                        });
+                        
+                        rosterHtml += '</div>';
+                        rosterDiv.innerHTML = rosterHtml;
+                    } else {
+                        rosterDiv.innerHTML = '<p class="text-center text-muted">No players drafted in this session.</p>';
+                    }
+                } else {
+                    rosterDiv.innerHTML = '<p class="text-center text-danger">Error loading roster.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading draft roster:', error);
+                const rosterDiv = document.getElementById(`roster-${sessionId}`);
+                rosterDiv.innerHTML = '<p class="text-center text-danger">Error loading roster.</p>';
+            }
+        }
+
+        function viewDraft(sessionId) {
+            // Navigate to draft view page
+            window.location.href = `/draft/${sessionId}`;
+        }
+
+        async function deleteDraft(sessionId) {
+            if (confirm('Are you sure you want to delete this draft? This action cannot be undone.')) {
+                try {
+                    const response = await fetch(`/api/draft/delete/${sessionId}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showAlert('Draft deleted successfully!', 'success');
+                        // Reload completed drafts
+                        await loadCompletedDrafts();
+                    } else {
+                        showAlert('Error deleting draft: ' + data.error, 'danger');
+                    }
+                } catch (error) {
+                    showAlert('Error deleting draft', 'danger');
+                }
+            }
+        }
+
+        // Add save draft functionality that redirects to user tab
+        async function saveDraftAndRedirect() {
+            try {
+                const draftName = prompt('Enter a name for your draft:');
+                if (!draftName) return;
+                
+                const response = await fetch('/api/save_draft', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        draft_name: draftName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Draft saved successfully! Redirecting to user page...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/user';
+                    }, 1500);
+                } else {
+                    showAlert('Error saving draft: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error saving draft: ' + error.message, 'danger');
+            }
+        }
+
+        // Make saveDraftAndRedirect globally available
+        window.saveDraftAndRedirect = saveDraftAndRedirect;
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/auth/logout');
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Logout successful! Redirecting...', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 1000);
+                } else {
+                    showAlert('Logout failed', 'danger');
+                }
+            } catch (error) {
+                showAlert('Error during logout', 'danger');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html> 
+ 
+ 

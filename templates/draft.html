@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Draft Room - Fantasy Draft Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        .main-container {
+            padding: 20px;
+        }
+        .card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background: rgba(255,255,255,0.8);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            border-radius: 15px 15px 0 0 !important;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 8px 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+        .player-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        .player-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+        .recommendation-card {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+        }
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 10px 15px;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        .loading {
+            display: none;
+        }
+        .roster-slot {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+        }
+        .roster-slot.filled {
+            background: #e7f3ff;
+            border-color: #0d6efd;
+        }
+        .roster-slot.empty {
+            background: #f8f9fa;
+            border-color: #dee2e6;
+            border-style: dashed;
+        }
+        .search-results {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .available-players {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        #userRoster {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        #draftHistory {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        #rosterNeeds {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-football-ball me-2"></i>
+                Fantasy Draft Assistant
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">
+                    Welcome, {{ username }}!
+                </span>
+                <a class="nav-link" href="/logout">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <!-- Draft Status -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line me-2"></i>
+                            Draft Status
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div id="draftProgress">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Draft Progress</span>
+                                        <span id="progressText">0%</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div id="currentPickInfo">
+                                    <p class="text-muted mb-0">Draft not initialized</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Left Column - Settings & Status -->
+            <div class="col-md-3">
+                <!-- League Settings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-cog me-2"></i>
+                            League Settings
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="draftSettingsForm">
+                            <div class="mb-3">
+                                <label class="form-label">Scoring Format</label>
+                                <select class="form-select" id="scoringFormat">
+                                    <option value="ppr">PPR</option>
+                                    <option value="half-ppr">Half-PPR</option>
+                                    <option value="non-ppr">Standard</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Number of Teams</label>
+                                <select class="form-select" id="numTeams">
+                                    <option value="8">8 Teams</option>
+                                    <option value="10">10 Teams</option>
+                                    <option value="12" selected>12 Teams</option>
+                                    <option value="14">14 Teams</option>
+                                    <option value="16">16 Teams</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Your Draft Position</label>
+                                <select class="form-select" id="userPosition">
+                                    <option value="1">1st</option>
+                                    <option value="2">2nd</option>
+                                    <option value="3">3rd</option>
+                                    <option value="4">4th</option>
+                                    <option value="5">5th</option>
+                                    <option value="6">6th</option>
+                                    <option value="7">7th</option>
+                                    <option value="8">8th</option>
+                                    <option value="9">9th</option>
+                                    <option value="10">10th</option>
+                                    <option value="11">11th</option>
+                                    <option value="12">12th</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100" id="initButton">
+                                <i class="fas fa-play me-2"></i>Initialize Draft
+                            </button>
+                            <button type="button" class="btn btn-warning w-100 mt-2" id="changePositionButton" onclick="changeUserPosition()">
+                                <i class="fas fa-edit me-2"></i>Change Draft Position
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Roster Needs -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Roster Needs
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="rosterNeeds">
+                            <p class="text-muted mb-0">No roster data available</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-tools me-2"></i>
+                            Actions
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <button class="btn btn-success w-100 mb-2" onclick="getRecommendations()" id="getRecsBtn">
+                            <i class="fas fa-robot me-2"></i>Get Recommendations
+                        </button>
+                        <button class="btn btn-info w-100 mb-2" onclick="exportResults()">
+                            <i class="fas fa-download me-2"></i>Export Results
+                        </button>
+                        <button class="btn btn-warning w-100 mb-2" onclick="resetDraft()" id="resetBtn">
+                            <i class="fas fa-redo me-2"></i>Reset Draft
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Column - Main Content -->
+            <div class="col-md-6">
+                <!-- AI Recommendations -->
+                <div class="card mb-4" id="recommendationsCard" style="display: none;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-robot me-2"></i>
+                            AI Recommendations
+                        </h6>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="skipRecommendations()">
+                            <i class="fas fa-times me-1"></i>Skip
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="simulationStatus" class="small text-muted mb-2"></div>
+                        <div id="recommendations">
+                            <p class="text-muted">Click "Get Recommendations" to see AI suggestions</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Player Search -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-search me-2"></i>
+                            Player Search
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <input type="text" class="form-control" id="searchInput" placeholder="Search for players...">
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" id="positionFilter">
+                                    <option value="">All Positions</option>
+                                    <option value="QB">QB</option>
+                                    <option value="RB">RB</option>
+                                    <option value="WR">WR</option>
+                                    <option value="TE">TE</option>
+                                    <option value="K">K</option>
+                                    <option value="DST">DST</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="search-results mt-3" id="searchResults"></div>
+                    </div>
+                </div>
+
+                <!-- Available Players -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-users me-2"></i>
+                            Available Players
+                        </h6>
+                        <select class="form-select form-select-sm w-auto" id="availablePositionFilter">
+                            <option value="">All Positions</option>
+                            <option value="QB">QB</option>
+                            <option value="RB">RB</option>
+                            <option value="WR">WR</option>
+                            <option value="TE">TE</option>
+                            <option value="K">K</option>
+                            <option value="DST">DST</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div class="available-players" id="availablePlayers">
+                            <p class="text-muted">No players available</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Roster & History -->
+            <div class="col-md-3">
+                <!-- Your Roster -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-user me-2"></i>
+                            Your Roster
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="userRoster">
+                            <p class="text-muted">No players drafted yet</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Draft History -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Recent Picks
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="draftHistory">
+                            <p class="text-muted">No picks made yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Processing...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentStatus = null;
+        let pollingInterval = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Start polling for updates
+            startPolling();
+        });
+
+        function setupEventListeners() {
+            // Draft settings form
+            document.getElementById('draftSettingsForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                initializeDraft();
+            });
+
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', function() {
+                const query = this.value.trim();
+                if (query.length >= 2) {
+                    searchPlayers(query);
+                } else {
+                    document.getElementById('searchResults').innerHTML = '';
+                }
+            });
+
+            // Position filters
+            document.getElementById('availablePositionFilter').addEventListener('change', function() {
+                loadAvailablePlayers();
+            });
+
+            document.getElementById('positionFilter').addEventListener('change', function() {
+                const query = document.getElementById('searchInput').value.trim();
+                if (query.length >= 2) {
+                    searchPlayers(query);
+                }
+            });
+        }
+
+        function startPolling() {
+            // Poll for status updates every 2 seconds
+            pollingInterval = setInterval(async () => {
+                try {
+                    await loadStatus();
+                    await loadAvailablePlayers();
+                    await loadRosterNeeds();
+                    
+                    // Only reload roster every 2 seconds before draft is initialized
+                    // After initialization, roster will only update after user picks
+                    if (!currentStatus || !currentStatus.draft_initialized) {
+                        await loadUserRoster();
+                    }
+                    
+                    await loadDraftHistory();
+                } catch (error) {
+                    console.error('Error in polling:', error);
+                }
+            }, 2000);
+        }
+
+        async function initializeDraft() {
+            const initButton = document.getElementById('initButton');
+            const originalText = initButton.innerHTML;
+            
+            // Show loading state
+            initButton.disabled = true;
+            initButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Initializing...';
+            
+            try {
+                const scoringFormat = document.getElementById('scoringFormat').value;
+                const numTeams = parseInt(document.getElementById('numTeams').value);
+                const userPosition = parseInt(document.getElementById('userPosition').value);
+                
+                const response = await fetch('/api/init', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        scoring_format: scoringFormat,
+                        num_teams: numTeams,
+                        user_position: userPosition
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showAlert('Draft initialized successfully!', 'success');
+                    await loadAllData();
+                } else {
+                    showAlert('Failed to initialize draft: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error initializing draft: ' + error.message, 'danger');
+            } finally {
+                // Restore button state
+                initButton.disabled = false;
+                initButton.innerHTML = originalText;
+            }
+        }
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus(data.status);
+                }
+            } catch (error) {
+                console.error('Error loading status:', error);
+            }
+        }
+
+        function updateStatus(status) {
+            currentStatus = status;
+            
+            // Update progress bar
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progress = status.progress_percentage || 0;
+            
+            progressBar.style.width = progress + '%';
+            progressText.textContent = Math.round(progress) + '%';
+
+            // Update current pick info
+            const pickInfo = status.current_pick_info;
+            const pickInfoDiv = document.getElementById('currentPickInfo');
+            
+            if (status.is_draft_complete || pickInfo.status === 'Draft Complete') {
+                pickInfoDiv.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-trophy text-warning fa-2x mb-2"></i>
+                        <h6 class="text-success">Draft Complete!</h6>
+                        <small class="text-muted">All ${status.total_roster_spots || 0} roster spots filled</small>
+                    </div>
+                `;
+            } else if (pickInfo.status === 'Draft Not Started') {
+                pickInfoDiv.innerHTML = `
+                    <div class="text-center">
+                        <i class="fas fa-clock text-muted fa-2x mb-2"></i>
+                        <h6 class="text-muted">Draft Not Started</h6>
+                        <small class="text-muted">Your Position: ${status.user_draft_position || 'Not Set'}</small>
+                    </div>
+                `;
+            } else {
+                const statusClass = pickInfo.is_user_turn ? 'success' : 'warning';
+                pickInfoDiv.innerHTML = `
+                    <div class="text-center">
+                        <h6>Round ${pickInfo.round}, Pick ${pickInfo.pick}</h6>
+                        <p class="mb-1">${pickInfo.team_name}</p>
+                        <span class="badge bg-${statusClass} status-badge">
+                            ${pickInfo.status}
+                        </span>
+                        <br><small class="text-muted mt-1">Your Position: ${status.user_draft_position || 'Not Set'}</small>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadAvailablePlayers() {
+            try {
+                const position = document.getElementById('availablePositionFilter').value;
+                const response = await fetch(`/api/available_players?position=${position}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayAvailablePlayers(data.players);
+                }
+            } catch (error) {
+                console.error('Error loading available players:', error);
+            }
+        }
+
+        function displayAvailablePlayers(players) {
+            const container = document.getElementById('availablePlayers');
+            
+            if (!players || players.length === 0) {
+                container.innerHTML = '<p class="text-muted">No players available</p>';
+                return;
+            }
+
+            const playersHtml = players.map(player => {
+                const escapedName = player.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                
+                return `
+                    <div class="player-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-1">
+                                    <strong>${player.name}</strong>
+                                    ${player.is_customized ? '<span class="badge bg-warning ms-2"><i class="fas fa-edit"></i> Custom</span>' : ''}
+                                </div>
+                                <div class="text-muted small">
+                                    ${player.team} • ${player.position} • ADP: ${player.adp.toFixed(1)}
+                                </div>
+                                <div class="text-primary">
+                                    <strong>${player.projected_points.toFixed(1)} pts</strong>
+                                </div>
+                            </div>
+                            <div class="ms-2">
+                                <button class="btn btn-sm btn-primary" onclick="draftPlayer('${escapedName}')">
+                                    <i class="fas fa-plus"></i> Draft
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = playersHtml;
+        }
+
+        async function searchPlayers(query) {
+            try {
+                const position = document.getElementById('positionFilter').value;
+                const response = await fetch(`/api/search_players?query=${encodeURIComponent(query)}&position=${position}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySearchResults(data.players);
+                }
+            } catch (error) {
+                console.error('Error searching players:', error);
+            }
+        }
+
+        function displaySearchResults(players) {
+            const container = document.getElementById('searchResults');
+            
+            if (!players || players.length === 0) {
+                container.innerHTML = '<p class="text-muted">No players found</p>';
+                return;
+            }
+
+            const playersHtml = players.map(player => {
+                const escapedName = player.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                
+                return `
+                    <div class="player-card">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-1">
+                                    <strong>${player.name}</strong>
+                                    ${player.is_customized ? '<span class="badge bg-warning ms-2"><i class="fas fa-edit"></i> Custom</span>' : ''}
+                                </div>
+                                <div class="text-muted small">
+                                    ${player.team} • ${player.position} • ADP: ${player.adp.toFixed(1)}
+                                </div>
+                                <div class="text-primary">
+                                    <strong>${player.projected_points.toFixed(1)} pts</strong>
+                                </div>
+                            </div>
+                            <div class="ms-2">
+                                <button class="btn btn-sm btn-primary" onclick="draftPlayer('${escapedName}')">
+                                    <i class="fas fa-plus"></i> Draft
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = playersHtml;
+        }
+
+        async function draftPlayer(playerName) {
+            try {
+                const response = await fetch('/api/draft_player', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        player_name: playerName
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // Remove player from available players list immediately
+                    removePlayerFromLists(playerName);
+                    
+                    // Don't show duplicate success message since removePlayerFromLists shows one
+                    await loadAllData();
+                    
+                    // Reload roster after user pick (even after draft is initialized)
+                    await loadUserRoster();
+                } else {
+                    showAlert('Failed to draft player: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error drafting player: ' + error.message, 'danger');
+            }
+        }
+
+        function removePlayerFromLists(playerName) {
+            // Remove from available players
+            const availableContainer = document.getElementById('availablePlayers');
+            const playerCards = availableContainer.querySelectorAll('.player-card');
+            playerCards.forEach(card => {
+                const nameElement = card.querySelector('strong');
+                if (nameElement && nameElement.textContent === playerName) {
+                    card.style.transition = 'opacity 0.3s ease';
+                    card.style.opacity = '0';
+                    setTimeout(() => card.remove(), 300);
+                }
+            });
+            
+            // Remove from search results
+            const searchContainer = document.getElementById('searchResults');
+            if (searchContainer) {
+                const searchCards = searchContainer.querySelectorAll('.player-card');
+                searchCards.forEach(card => {
+                    const nameElement = card.querySelector('strong');
+                    if (nameElement && nameElement.textContent === playerName) {
+                        card.style.transition = 'opacity 0.3s ease';
+                        card.style.opacity = '0';
+                        setTimeout(() => card.remove(), 300);
+                    }
+                });
+            }
+            
+            // Remove from recommendations
+            const recContainer = document.getElementById('recommendations');
+            const recCards = recContainer.querySelectorAll('.recommendation-card');
+            recCards.forEach(card => {
+                const nameElement = card.querySelector('strong');
+                if (nameElement && nameElement.textContent.includes(playerName)) {
+                    card.style.transition = 'opacity 0.3s ease';
+                    card.style.opacity = '0';
+                    setTimeout(() => card.remove(), 300);
+                }
+            });
+            
+            // Show a visual feedback that the player was drafted
+            showAlert(`${playerName} has been drafted and removed from available players!`, 'info');
+        }
+
+        async function getRecommendations() {
+            const getRecsBtn = document.getElementById('getRecsBtn');
+            const originalText = getRecsBtn.innerHTML;
+            
+            // Show loading state
+            getRecsBtn.disabled = true;
+            getRecsBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Loading...';
+            
+            try {
+                const response = await fetch('/api/recommendations?num=5');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayRecommendations(data.recommendations);
+                    document.getElementById('recommendationsCard').style.display = 'block';
+                } else {
+                    showAlert('Failed to get recommendations: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error getting recommendations: ' + error.message, 'danger');
+            } finally {
+                // Restore button state
+                getRecsBtn.disabled = false;
+                getRecsBtn.innerHTML = originalText;
+            }
+        }
+
+        function displayRecommendations(recommendations) {
+            const container = document.getElementById('recommendations');
+            
+            if (!recommendations || recommendations.length === 0) {
+                container.innerHTML = '<p class="text-muted">No recommendations available</p>';
+                return;
+            }
+            
+            let html = '<div class="list-group">';
+            recommendations.forEach((rec, index) => {
+                const escapedName = rec.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                
+                html += `
+                    <div class="recommendation-card">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${rec.name}</strong> (${rec.position}, ${rec.team})
+                                <br>
+                                <small class="text-muted">
+                                    ADP: ${rec.adp.toFixed(1)} | Proj: ${rec.projected_points.toFixed(1)} pts
+                                </small>
+                                <br>
+                                <small class="text-success">
+                                    <strong>Expected Season Score: ${rec.expected_season_score.toFixed(1)}</strong>
+                                </small>
+                            </div>
+                            <button class="btn btn-primary btn-sm" onclick="draftPlayer('${escapedName}')">
+                                Draft
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        async function loadRosterNeeds() {
+            try {
+                const response = await fetch('/api/roster_needs');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayRosterNeeds(data.needs);
+                }
+            } catch (error) {
+                console.error('Error loading roster needs:', error);
+            }
+        }
+
+        function displayRosterNeeds(needs) {
+            const container = document.getElementById('rosterNeeds');
+            
+            // Store current scroll position
+            const scrollTop = container.scrollTop;
+            
+            if (!needs) {
+                const emptyHtml = '<p class="text-muted">No roster data available</p>';
+                if (container.innerHTML !== emptyHtml) {
+                    container.innerHTML = emptyHtml;
+                }
+                return;
+            }
+
+            const needsHtml = Object.entries(needs).map(([position, count]) => `
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span>${position}</span>
+                    <span class="badge bg-${count > 0 ? 'warning' : 'success'}">${count}</span>
+                </div>
+            `).join('');
+
+            const finalHtml = needsHtml || '<p class="text-muted">All positions filled</p>';
+            
+            // Only update if content has actually changed
+            if (container.innerHTML !== finalHtml) {
+                container.innerHTML = finalHtml;
+                // Restore scroll position immediately after update
+                container.scrollTop = scrollTop;
+            }
+        }
+
+        async function loadUserRoster() {
+            try {
+                const response = await fetch('/api/user_roster');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayUserRoster(data.roster);
+                }
+            } catch (error) {
+                console.error('Error loading user roster:', error);
+            }
+        }
+
+        function displayUserRoster(roster) {
+            const container = document.getElementById('userRoster');
+            
+            // Store current scroll position
+            const scrollTop = container.scrollTop;
+            console.log('Roster update - Previous scroll position:', scrollTop);
+            
+            if (!roster || roster.length === 0) {
+                // Only update if content is different
+                if (container.innerHTML !== '<p class="text-muted">No players drafted yet</p>') {
+                    container.innerHTML = '<p class="text-muted">No players drafted yet</p>';
+                }
+                return;
+            }
+
+            // Create new roster HTML
+            const rosterHtml = roster.map(player => `
+                <div class="roster-slot filled">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${player.name}</strong>
+                            <br>
+                            <small class="text-muted">${player.position} - ${player.team}</small>
+                            <br>
+                            <small class="text-success">${player.projected_points.toFixed(1)} pts</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-primary">${player.position}</span>
+                            ${player.bye_week > 0 ? `<br><small class="text-muted">Bye: ${player.bye_week}</small>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Only update if content has actually changed
+            if (container.innerHTML !== rosterHtml) {
+                console.log('Roster content changed, updating display');
+                container.innerHTML = rosterHtml;
+                
+                // Restore scroll position immediately after update
+                container.scrollTop = scrollTop;
+                console.log('Roster update - Scroll position restored to:', container.scrollTop);
+            } else {
+                console.log('Roster content unchanged, preserving scroll position');
+            }
+        }
+
+        async function loadDraftHistory() {
+            try {
+                const response = await fetch('/api/draft_history');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayDraftHistory(data.history);
+                }
+            } catch (error) {
+                console.error('Error loading draft history:', error);
+            }
+        }
+
+        function displayDraftHistory(history) {
+            const container = document.getElementById('draftHistory');
+            
+            // Store current scroll position
+            const scrollTop = container.scrollTop;
+            
+            if (!history || history.length === 0) {
+                const emptyHtml = '<p class="text-muted">No picks made yet</p>';
+                if (container.innerHTML !== emptyHtml) {
+                    container.innerHTML = emptyHtml;
+                }
+                return;
+            }
+
+            // Show most recent pick at the top
+            const reversed = [...history].reverse();
+            const historyHtml = reversed.map((pick, index) => `
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <div>
+                        <small><strong>${pick.player_name}</strong></small><br>
+                        <small class="text-muted">${pick.player_team} • ${pick.player_position}</small>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted">${pick.team_name}</small><br>
+                        <span class="badge bg-primary">R${pick.round}.${pick.pick}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // Only update if content has actually changed
+            if (container.innerHTML !== historyHtml) {
+                container.innerHTML = historyHtml;
+                // Restore scroll position immediately after update
+                container.scrollTop = scrollTop;
+            }
+        }
+
+        async function loadAllData() {
+            await Promise.all([
+                loadStatus(),
+                loadAvailablePlayers(),
+                loadRosterNeeds(),
+                loadUserRoster(),
+                loadDraftHistory()
+            ]);
+        }
+
+        async function exportResults() {
+            try {
+                const response = await fetch('/api/export_results');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const blob = new Blob([JSON.stringify(data.results, null, 2)], { type: 'application/json' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'fantasy_draft_results.json';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    showAlert('Results exported successfully!', 'success');
+                } else {
+                    showAlert('Failed to export results: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error exporting results: ' + error.message, 'danger');
+            }
+        }
+
+        async function resetDraft() {
+            if (!confirm('Are you sure you want to reset the draft? This will clear all picks.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/reset_draft', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    await loadAllData();
+                    showAlert('Draft reset successfully!', 'success');
+                } else {
+                    showAlert('Failed to reset draft: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error resetting draft: ' + error.message, 'danger');
+            }
+        }
+
+        function skipRecommendations() {
+            document.getElementById('recommendationsCard').style.display = 'none';
+            showAlert('Recommendations skipped. You can make a manual pick.', 'info');
+        }
+
+        async function changeUserPosition() {
+            const userPosition = document.getElementById('userPosition').value;
+            
+            if (!userPosition) {
+                showAlert('Please select a draft position first', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/set_user_position', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_position: parseInt(userPosition)
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showAlert(`Draft position changed to ${userPosition}`, 'success');
+                    await loadAllData();
+                } else {
+                    showAlert('Failed to change draft position: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error changing draft position: ' + error.message, 'danger');
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.top = '20px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html> 

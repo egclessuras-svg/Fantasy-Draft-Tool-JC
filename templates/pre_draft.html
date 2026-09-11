@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Draft Assistant - Pre Draft</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .draft-status {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .nav-tabs .nav-link {
+            border: none;
+            border-radius: 10px 10px 0 0;
+            margin-right: 5px;
+            color: #6c757d;
+            font-weight: 500;
+        }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+        }
+        .nav-tabs .nav-link:hover {
+            background: #f8f9fa;
+            color: #495057;
+        }
+        .customize-toggle {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .customize-toggle:hover {
+            background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+            color: white;
+        }
+        .customize-toggle.active {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        .customize-toggle.active:hover {
+            background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+        }
+        .filter-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+        .players-horizontal-list {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow-x: auto;
+            padding: 0;
+        }
+        .player-row {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #e9ecef;
+            padding: 0.5rem 1rem;
+            min-height: 56px;
+            transition: background 0.2s;
+            position: relative;
+        }
+        .player-row:last-child {
+            border-bottom: none;
+        }
+        .player-row:hover {
+            background: #f8f9fa;
+        }
+        .player-row.customized {
+            border-left: 4px solid #28a745;
+            background: linear-gradient(90deg, #f8fff9 0%, #ffffff 100%);
+        }
+        .player-main {
+            display: flex;
+            align-items: center;
+            flex: 1 1 0%;
+            gap: 1rem;
+            min-width: 0;
+        }
+        .player-name {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+        .position-badge {
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .team-badge {
+            font-size: 0.7rem;
+            background: #6c757d;
+        }
+        .adp-badge {
+            font-size: 0.8rem;
+            color: #888;
+            margin-left: 8px;
+        }
+        .ppr-points {
+            display: flex;
+            gap: 8px;
+            margin-left: 1rem;
+        }
+        .ppr-point {
+            background: #f8f9fa;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            text-align: center;
+            min-width: 48px;
+        }
+        .ppr-point.full-ppr {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        .ppr-point.half-ppr {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        .ppr-point.non-ppr {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+        .edit-icon-btn {
+            background: none;
+            border: none;
+            color: #007bff;
+            font-size: 1.2rem;
+            margin-left: 1rem;
+            cursor: pointer;
+            transition: color 0.2s;
+            z-index: 2;
+        }
+        .edit-icon-btn:hover {
+            color: #0056b3;
+        }
+        .customized-badge {
+            margin-left: 0.5rem;
+            color: #28a745;
+            font-size: 1rem;
+            vertical-align: middle;
+        }
+        .expand-section {
+            width: 100%;
+            background: #f8f9fa;
+            border-radius: 0 0 8px 8px;
+            margin-top: 0.5rem;
+            padding: 1rem 2rem 1rem 2rem;
+            display: none;
+        }
+        .expand-section.show {
+            display: block;
+        }
+        .stat-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .stat-input label {
+            min-width: 120px;
+            font-weight: 500;
+        }
+        .stat-input input {
+            width: 100px;
+        }
+        .save-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .save-button:hover {
+            background: #218838;
+        }
+        .reset-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-left: 10px;
+        }
+        .reset-button:hover {
+            background: #5a6268;
+        }
+        
+        /* Modal styles for player editing */
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1040;
+            display: none;
+        }
+        
+        .modal-backdrop.show {
+            display: block;
+        }
+        
+        .edit-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1050;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .edit-modal.show {
+            display: block;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-modal:hover {
+            color: #333;
+        }
+        
+        .modal-body {
+            margin-bottom: 20px;
+        }
+        
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="row">
+            <div class="col-12">
+                <div class="draft-status">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2><i class="fas fa-chart-line me-2"></i>Pre Draft Analysis</h2>
+                            <p class="mb-0">Analyze and customize player projections before the draft</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="/logout" class="btn btn-outline-light btn-sm">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Navigation Tabs -->
+        <div class="row">
+            <div class="col-12">
+                <ul class="nav nav-tabs" id="preDraftTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" href="/app" role="tab">
+                            <i class="fas fa-drafting-compass me-2"></i>Draft Room
+                        </a>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link" href="/app" role="tab">
+                            <i class="fas fa-chart-line me-2"></i>Pre Draft
+                        </a>
+                    </li>
+                    <li class="nav-item ms-auto" role="presentation">
+                        <a class="nav-link" href="/user" role="tab">
+                            <i class="fas fa-user me-2"></i>User
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Customize Toggle -->
+        <div class="row">
+            <div class="col-12 text-center">
+                <button class="btn customize-toggle" id="customizeToggle" onclick="toggleCustomization()">
+                    <i class="fas fa-edit me-2"></i>Enable Customization
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="filter-section">
+                    <div class="row align-items-end">
+                        <div class="col-md-3">
+                            <label for="positionFilter" class="form-label">Position</label>
+                            <select class="form-select" id="positionFilter">
+                                <option value="">All Positions</option>
+                                <option value="QB">Quarterbacks</option>
+                                <option value="RB">Running Backs</option>
+                                <option value="WR">Wide Receivers</option>
+                                <option value="TE">Tight Ends</option>
+                                <option value="K">Kickers</option>
+                                <option value="DST">Defense/Special Teams</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="sortBy" class="form-label">Sort By</label>
+                            <select class="form-select" id="sortBy">
+                                <option value="adp">ADP</option>
+                                <option value="ppr">PPR Points</option>
+                                <option value="half_ppr">Half-PPR Points</option>
+                                <option value="standard">Standard Points</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="searchFilter" class="form-label">Search Players</label>
+                            <input type="text" class="form-control" id="searchFilter" placeholder="Enter player name...">
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-primary w-100" onclick="loadPlayers()">
+                                <i class="fas fa-search me-2"></i>Load Players
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12 text-center">
+                            <button class="btn btn-danger" onclick="resetAllPlayerData()">
+                                <i class="fas fa-trash me-2"></i>Reset All Player Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Players Display -->
+        <div class="row">
+            <div class="col-12">
+                <div id="playersContainer">
+                    <div class="loading-spinner">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p class="mt-2">Click "Load Players" to start analyzing</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Player Modal -->
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="edit-modal" id="editModal">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">Edit Player Stats</div>
+            <button class="close-modal" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="modalBody">
+            <!-- Stats editor will be inserted here -->
+        </div>
+        <div class="modal-footer">
+            <button class="save-button" onclick="savePlayerStats()">
+                <i class="fas fa-save me-1"></i>Save Changes
+            </button>
+            <button class="reset-button" onclick="resetPlayerStats()">
+                <i class="fas fa-undo me-1"></i>Reset
+            </button>
+            <button class="btn btn-secondary" onclick="closeModal()">
+                <i class="fas fa-times me-1"></i>Cancel
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allPlayers = [];
+        let filteredPlayers = [];
+        let customizationEnabled = false;
+        let currentEditingIndex = null;
+
+        function toggleCustomization() {
+            customizationEnabled = !customizationEnabled;
+            const toggle = document.getElementById('customizeToggle');
+            
+            if (customizationEnabled) {
+                toggle.innerHTML = '<i class="fas fa-times me-2"></i>Disable Customization';
+                toggle.classList.add('active');
+            } else {
+                toggle.innerHTML = '<i class="fas fa-edit me-2"></i>Enable Customization';
+                toggle.classList.remove('active');
+            }
+            
+            if (allPlayers.length > 0) {
+                displayPlayers();
+            }
+        }
+
+        function loadPlayers() {
+            const position = document.getElementById('positionFilter').value;
+            const sortBy = document.getElementById('sortBy').value;
+            const container = document.getElementById('playersContainer');
+            
+            container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Loading players...</p></div>';
+            
+            // Build URL with position filter
+            const url = position ? `/api/load_players_with_custom_projections?position=${position}` : '/api/load_players_with_custom_projections';
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (Array.isArray(data)) {
+                        allPlayers = data;
+                        filteredPlayers = [...allPlayers];
+                        displayPlayers();
+                    } else if (data.error) {
+                        container.innerHTML = '<div class="alert alert-danger">Error loading players: ' + data.error + '</div>';
+                    } else {
+                        container.innerHTML = '<div class="alert alert-danger">Error loading players: Invalid response format</div>';
+                    }
+                })
+                .catch(error => {
+                    container.innerHTML = '<div class="alert alert-danger">Error loading players: ' + error.message + '</div>';
+                });
+        }
+
+        function displayPlayers() {
+            const container = document.getElementById('playersContainer');
+            const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+            const sortBy = document.getElementById('sortBy').value;
+            
+            // Filter by search term
+            const searchFiltered = searchTerm ? 
+                filteredPlayers.filter(player => 
+                    player.name.toLowerCase().includes(searchTerm) ||
+                    player.team.toLowerCase().includes(searchTerm)
+                ) : filteredPlayers;
+            
+            // Sort players based on selected criteria
+            const sortedPlayers = [...searchFiltered].sort((a, b) => {
+                switch(sortBy) {
+                    case 'adp':
+                        return a.adp - b.adp;
+                    case 'ppr':
+                        return b.ppr_points - a.ppr_points;
+                    case 'half_ppr':
+                        return b.half_ppr_points - a.half_ppr_points;
+                    case 'standard':
+                        return b.non_ppr_points - a.non_ppr_points;
+                    default:
+                        return a.adp - b.adp;
+                }
+            });
+            
+            if (sortedPlayers.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No players found matching your criteria.</div>';
+                return;
+            }
+            
+            let html = '<div class="players-horizontal-list">';
+            
+            sortedPlayers.forEach((player, index) => {
+                const isCustomized = player.is_customized || false;
+                const projectedPoints = isCustomized ? player.custom_projected_points : player.projected_points;
+                // Find the player's index in the original allPlayers array
+                const originalIndex = allPlayers.findIndex(p => p.name === player.name);
+                html += `
+                    <div class="player-row ${isCustomized ? 'customized' : ''}">
+                        <div class="player-main">
+                            <span class="player-name">${player.name}</span>
+                            <span class="badge position-badge bg-primary ms-2">${player.position}</span>
+                            <span class="badge team-badge ms-1">${player.team}</span>
+                            <span class="adp-badge ms-2">ADP: ${player.adp}</span>
+                            <div class="ppr-points ms-3">
+                                <span class="ppr-point full-ppr">PPR<br>${player.ppr_points}</span>
+                                <span class="ppr-point half-ppr">Half<br>${player.half_ppr_points}</span>
+                                <span class="ppr-point non-ppr">Non<br>${player.non_ppr_points}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center ms-auto">
+                            <div class="customization-banner me-3">
+                                <span class="badge ${isCustomized ? 'bg-success' : 'bg-secondary'}">
+                                    ${isCustomized ? 'Customized' : 'Standard'}
+                                </span>
+                            </div>
+                            ${isCustomized ? '<span class="customized-badge" title="Customized"><i class="fas fa-check-circle"></i></span>' : ''}
+                            ${customizationEnabled ? `<button class="edit-icon-btn" onclick="openEditModal(${originalIndex})" title="Edit"><i class="fas fa-edit"></i></button>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function openEditModal(index) {
+            currentEditingIndex = index;
+            const player = allPlayers[index];
+            
+            // Update modal title
+            document.getElementById('modalTitle').textContent = `Edit ${player.name} Stats`;
+            
+            // Generate stats editor HTML
+            const statsEditorHtml = getStatsEditor(player, index);
+            document.getElementById('modalBody').innerHTML = statsEditorHtml;
+            
+            // Show modal
+            document.getElementById('modalBackdrop').classList.add('show');
+            document.getElementById('editModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modalBackdrop').classList.remove('show');
+            document.getElementById('editModal').classList.remove('show');
+            currentEditingIndex = null;
+        }
+
+        function getStatsEditor(player, index) {
+            const stats = player.raw_stats || {};
+            let html = '<h6 class="mb-3">Edit Player Stats</h6>';
+            
+            switch(player.position) {
+                case 'QB':
+                    html += `
+                        <div class="stat-input">
+                            <label>Passing Yards:</label>
+                            <input type="number" class="form-control" id="passing_yards_${index}" value="${stats.passing_yards || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Passing TDs:</label>
+                            <input type="number" class="form-control" id="passing_tds_${index}" value="${stats.passing_tds || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Interceptions:</label>
+                            <input type="number" class="form-control" id="passing_ints_${index}" value="${stats.passing_ints || stats.interceptions || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Rushing Yards:</label>
+                            <input type="number" class="form-control" id="rushing_yards_${index}" value="${stats.rushing_yards || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Rushing TDs:</label>
+                            <input type="number" class="form-control" id="rushing_tds_${index}" value="${stats.rushing_tds || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Fumbles:</label>
+                            <input type="number" class="form-control" id="fumbles_${index}" value="${stats.fumbles || 0}">
+                        </div>
+                    `;
+                    break;
+                case 'RB':
+                    html += `
+                        <div class="stat-input">
+                            <label>Rushing Yards:</label>
+                            <input type="number" class="form-control" id="rushing_yards_${index}" value="${stats.rushing_yards || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Rushing TDs:</label>
+                            <input type="number" class="form-control" id="rushing_tds_${index}" value="${stats.rushing_tds || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Receptions:</label>
+                            <input type="number" class="form-control" id="receptions_${index}" value="${stats.receptions || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Receiving Yards:</label>
+                            <input type="number" class="form-control" id="receiving_yards_${index}" value="${stats.receiving_yards || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Receiving TDs:</label>
+                            <input type="number" class="form-control" id="receiving_tds_${index}" value="${stats.receiving_tds || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Fumbles:</label>
+                            <input type="number" class="form-control" id="fumbles_${index}" value="${stats.fumbles || 0}">
+                        </div>
+                    `;
+                    break;
+                case 'WR':
+                case 'TE':
+                    html += `
+                        <div class="stat-input">
+                            <label>Receptions:</label>
+                            <input type="number" class="form-control" id="receptions_${index}" value="${stats.receptions || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Receiving Yards:</label>
+                            <input type="number" class="form-control" id="receiving_yards_${index}" value="${stats.receiving_yards || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Receiving TDs:</label>
+                            <input type="number" class="form-control" id="receiving_tds_${index}" value="${stats.receiving_tds || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Rushing Yards:</label>
+                            <input type="number" class="form-control" id="rushing_yards_${index}" value="${stats.rushing_yards || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Rushing TDs:</label>
+                            <input type="number" class="form-control" id="rushing_tds_${index}" value="${stats.rushing_tds || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Fumbles:</label>
+                            <input type="number" class="form-control" id="fumbles_${index}" value="${stats.fumbles || 0}">
+                        </div>
+                    `;
+                    break;
+                case 'K':
+                    html += `
+                        <div class="stat-input">
+                            <label>Field Goals:</label>
+                            <input type="number" class="form-control" id="field_goals_${index}" value="${stats.field_goals || 0}">
+                        </div>
+                        <div class="stat-input">
+                            <label>Extra Points:</label>
+                            <input type="number" class="form-control" id="extra_points_${index}" value="${stats.extra_points || 0}">
+                        </div>
+                    `;
+                    break;
+                case 'DST':
+                case 'DEF':
+                    html += `
+                        <div class="stat-input">
+                            <label>Season Points:</label>
+                            <input type="number" class="form-control" id="season_points_${index}" value="${stats.season_points || stats.dst_points || player.projected_points || 0}">
+                        </div>
+                    `;
+                    break;
+            }
+            
+            return html;
+        }
+
+        function savePlayerStats() {
+            if (currentEditingIndex === null) return;
+            
+            // Check if user is authenticated first
+            fetch('/api/auth/check')
+            .then(response => response.json())
+            .then(authData => {
+                console.log('Auth check:', authData);
+                if (!authData.authenticated) {
+                    showNotification('Please log in to save custom projections', 'error');
+                    return;
+                }
+                
+                const player = allPlayers[currentEditingIndex];
+                const stats = {};
+                
+                // Add position to stats
+                stats.position = player.position;
+                
+                // Collect all stat inputs for this player
+                const inputs = document.querySelectorAll('#modalBody input');
+                inputs.forEach(input => {
+                    const statName = input.id.split('_').slice(0, -1).join('_');
+                    stats[statName] = parseFloat(input.value) || 0;
+                });
+                
+                // Debug: Log what we're sending
+                const requestData = {
+                    player_name: player.name,
+                    position: player.position,
+                    custom_stats: stats
+                };
+                console.log('Sending data to save:', requestData);
+                
+                // Save to backend
+                fetch('/api/save_custom_projection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data);
+                    if (data.success) {
+                        // Reload players to get fresh data from server
+                        loadPlayers();
+                        
+                        // Close modal
+                        closeModal();
+                        
+                        // Show success message
+                        showNotification('Changes saved successfully!', 'success');
+                    } else {
+                        showNotification('Error saving changes: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    showNotification('Error saving changes: ' + error.message, 'error');
+                });
+            })
+            .catch(error => {
+                console.error('Auth check error:', error);
+                showNotification('Authentication error', 'error');
+            });
+        }
+
+        function resetPlayerStats() {
+            if (currentEditingIndex === null) return;
+            
+            const player = allPlayers[currentEditingIndex];
+            
+            fetch('/api/reset_custom_projection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    player_name: player.name
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reset local player data to original values
+                    player.is_customized = false;
+                    player.custom_projected_points = null;
+                    
+                    // Reload players to get fresh data from server
+                    loadPlayers();
+                    
+                    // Close modal
+                    closeModal();
+                    
+                    // Show success message
+                    showNotification('Player stats reset to original values!', 'success');
+                } else {
+                    showNotification('Error resetting stats: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Error resetting stats: ' + error.message, 'error');
+            });
+        }
+
+        function calculatePPRPoints(stats, pprMultiplier) {
+            let points = 0;
+            
+            // Passing points (for QBs)
+            if (stats.passing_yards) points += stats.passing_yards * 0.04;
+            if (stats.passing_tds) points += stats.passing_tds * 4;
+            if (stats.interceptions) points += stats.interceptions * -2;  // QB interceptions are negative
+            
+            // Rushing points
+            if (stats.rushing_yards) points += stats.rushing_yards * 0.1;
+            if (stats.rushing_tds) points += stats.rushing_tds * 6;
+            
+            // Receiving points with PPR
+            if (stats.receiving_yards) points += stats.receiving_yards * 0.1;
+            if (stats.receiving_tds) points += stats.receiving_tds * 6;
+            if (stats.receptions) points += stats.receptions * pprMultiplier;
+            
+            // Fumbles
+            if (stats.fumbles) points += stats.fumbles * -2;
+            
+            // Kicking points
+            if (stats.field_goals_made) points += stats.field_goals_made * 3;
+            if (stats.extra_points_made) points += stats.extra_points_made * 1;
+            
+            // Defense points (for DST - separate from QB interceptions)
+            if (stats.sacks) points += stats.sacks * 1;
+            if (stats.interceptions) points += stats.interceptions * 2;  // DST interceptions are positive
+            if (stats.fumble_recoveries) points += stats.fumble_recoveries * 2;
+            if (stats.forced_fumbles) points += stats.forced_fumbles * 2;
+            if (stats.defensive_tds) points += stats.defensive_tds * 6;
+            if (stats.safeties) points += stats.safeties * 2;
+            
+            return Math.round(points * 10) / 10;
+        }
+
+        function showNotification(message, type) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show position-fixed`;
+            notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 3 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 3000);
+        }
+
+        // Search functionality
+        document.getElementById('searchFilter').addEventListener('input', function() {
+            if (allPlayers.length > 0) {
+                displayPlayers();
+            }
+        });
+
+        // Sort functionality
+        document.getElementById('sortBy').addEventListener('change', function() {
+            if (allPlayers.length > 0) {
+                displayPlayers();
+            }
+        });
+
+        // Position filter functionality
+        document.getElementById('positionFilter').addEventListener('change', function() {
+            // Reload players with new position filter
+            loadPlayers();
+        });
+
+        // Load players on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initial load with all positions
+            loadPlayers();
+            
+            // Add event listeners for modal
+            document.getElementById('modalBackdrop').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeModal();
+                }
+            });
+            
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
+
+        function resetAllPlayerData() {
+            if (confirm('Are you sure you want to reset all players to FantasyPros default data? This will clear all customizations.')) {
+                const container = document.getElementById('playersContainer');
+                container.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin fa-2x"></i><p class="mt-2">Resetting to FantasyPros data...</p></div>';
+
+                fetch('/api/reset_all_players', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload players to get fresh data
+                        loadPlayers();
+                        showNotification('All players reset to FantasyPros default data!', 'success');
+                    } else {
+                        showNotification('Error resetting players: ' + data.error, 'error');
+                        displayPlayers(); // Show current data even if reset failed
+                    }
+                })
+                .catch(error => {
+                    showNotification('Error resetting players: ' + error.message, 'error');
+                    displayPlayers(); // Show current data even if reset failed
+                });
+            }
+        }
+    </script>
+</body>
+</html> 
+
+ 
+ 
