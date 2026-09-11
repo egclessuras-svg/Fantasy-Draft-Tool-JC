@@ -1270,6 +1270,21 @@ def run_simulation():
 NUM_OPPONENT_TRAJECTORIES = 40
 VORP_CANDIDATE_POOL_SIZE = 15
 
+# League rule: no team may roster more than this many players at these positions
+# (a 4th+ QB is not draftable at all, not just a bad bench stash).
+MAX_POSITION_COUNTS = {'QB': 3}
+
+# Opponent pick model: chance a team reaches instead of taking the best-ADP player
+# available, and how far they can reach. random.triangular skews toward small
+# reaches with an occasional bigger one, rather than every reach depth being
+# equally likely.
+OPPONENT_REACH_PROBABILITY = 0.35
+OPPONENT_MAX_REACH_DEPTH = 12
+
+
+def _position_count(roster, position):
+    return sum(1 for p in roster if p.position == position)
+
 
 def _position_starter_slots(assistant, position):
     """Starting slots for a position. roster_constraints keys defense as 'DEF' while
@@ -1278,13 +1293,20 @@ def _position_starter_slots(assistant, position):
     return assistant.roster_constraints.get(key, 1)
 
 
-def _compute_vorp_candidates(assistant, available_players, projection_cache, pool_size=VORP_CANDIDATE_POOL_SIZE):
+def _compute_vorp_candidates(assistant, available_players, projection_cache, current_roster=None, pool_size=VORP_CANDIDATE_POOL_SIZE):
     """Rank available players by value over replacement (projected points above the
     last startable player at their position), instead of only ever considering the
     single highest-projected player at each position. This lets a strong RB2 or WR2
-    compete for a recommendation slot against the position's nominal #1."""
+    compete for a recommendation slot against the position's nominal #1. Positions
+    already at their league-mandated roster cap (see MAX_POSITION_COUNTS) are
+    excluded entirely - a 4th QB is never a legal pick, so it should never be
+    recommended, not just devalued."""
+    current_roster = current_roster or []
     by_position = {}
     for player in available_players:
+        cap = MAX_POSITION_COUNTS.get(player.position)
+        if cap is not None and _position_count(current_roster, player.position) >= cap:
+            continue
         by_position.setdefault(player.position, []).append(player)
 
     flex_slots = assistant.roster_constraints.get('FLEX', 0)
@@ -1308,12 +1330,19 @@ def _compute_vorp_candidates(assistant, available_players, projection_cache, poo
 
 def _generate_opponent_trajectories(assistant, num_trajectories=NUM_OPPONENT_TRAJECTORIES):
     """Pre-generate `num_trajectories` independent 'rest of draft' pick sequences for
-    every OTHER team, using the existing ADP+reach heuristic. Generated once per
-    recommendation request and shared across every candidate evaluated below - a
-    Monte Carlo variance-reduction technique ('common random numbers') so candidates
-    are compared against the same hypothetical boards instead of independently noisy
-    ones, which is what let us afford more candidates without more total simulations.
+    every OTHER team, using an ADP+reach heuristic. Generated once per recommendation
+    request and shared across every candidate evaluated below - a Monte Carlo
+    variance-reduction technique ('common random numbers') so candidates are compared
+    against the same hypothetical boards instead of independently noisy ones, which
+    is what let us afford more candidates without more total simulations.
     The user's own turns are left as placeholders; each candidate replay fills those in.
+
+    Each opponent pick: OPPONENT_REACH_PROBABILITY chance of a "reach" (skipping past
+    the best-ADP player), otherwise best-ADP-available. Reach depth is drawn from a
+    triangular distribution (0 to OPPONENT_MAX_REACH_DEPTH, peaked at 0) so small
+    reaches are common and big ones rare, rather than every depth up to the cap being
+    equally likely. Positions at their league roster cap (MAX_POSITION_COUNTS) are
+    never picked, mirroring the same rule enforced for the user's own simulated picks.
     """
     user_team = assistant.teams[assistant.user_draft_position - 1]
     base_available = set(assistant.available_players)
@@ -1321,6 +1350,7 @@ def _generate_opponent_trajectories(assistant, num_trajectories=NUM_OPPONENT_TRA
 
     for _ in range(num_trajectories):
         available = set(base_available)
+        team_rosters = {team: list(roster) for team, roster in assistant.drafted_players.items()}
         picks = []
         pick = assistant.current_pick
         while pick <= assistant.total_picks:
@@ -1332,14 +1362,23 @@ def _generate_opponent_trajectories(assistant, num_trajectories=NUM_OPPONENT_TRA
 
             if team_name == user_team:
                 picks.append((team_name, None))
-            elif available:
-                sorted_available = sorted(available, key=lambda p: p.adp)
-                if random.random() < 0.7:
+                pick += 1
+                continue
+
+            roster = team_rosters[team_name]
+            eligible = [
+                p for p in available
+                if _position_count(roster, p.position) < MAX_POSITION_COUNTS.get(p.position, 99)
+            ]
+            if eligible:
+                sorted_available = sorted(eligible, key=lambda p: p.adp)
+                if random.random() < (1 - OPPONENT_REACH_PROBABILITY):
                     idx = 0
                 else:
-                    idx = min(random.randint(0, 5), len(sorted_available) - 1)
+                    idx = min(int(random.triangular(0, OPPONENT_MAX_REACH_DEPTH, 0)), len(sorted_available) - 1)
                 picked = sorted_available[idx]
                 available.discard(picked)
+                roster.append(picked)
                 picks.append((team_name, picked))
             else:
                 picks.append((team_name, None))
@@ -1371,6 +1410,9 @@ def _replay_trajectory_with_candidate(assistant, candidate, trajectory, projecti
             for player in assistant.available_players:
                 if player in taken:
                     continue
+                cap = MAX_POSITION_COUNTS.get(player.position)
+                if cap is not None and _position_count(sim_roster[user_team], player.position) >= cap:
+                    continue  # league roster cap - e.g. a 4th QB is not a legal pick
                 position_need = roster_needs.get(player.position, 0)
 
                 if position_need > 0:
@@ -1452,7 +1494,7 @@ def run_simulations_with_web_projections(assistant, num_recommendations=10):
         current_roster = assistant.drafted_players.get(current_team, [])
         roster_needs = get_roster_needs_for_simulation_web_projections(assistant, current_roster, projection_cache)
 
-        candidates = _compute_vorp_candidates(assistant, available_players, projection_cache)
+        candidates = _compute_vorp_candidates(assistant, available_players, projection_cache, current_roster)
         print(f"Evaluating {len(candidates)} candidates by value-over-replacement...")
 
         trajectories = _generate_opponent_trajectories(assistant)
@@ -1496,6 +1538,55 @@ def run_simulations_with_web_projections(assistant, num_recommendations=10):
 
         # Sort by adjusted value (highest first)
         sorted_players = sorted(adjusted_scores.items(), key=lambda x: x[1], reverse=True)
+
+        # Each score is an average over NUM_OPPONENT_TRAJECTORIES samples, so two
+        # similar players can land in the wrong order just from sampling noise - e.g.
+        # a player with both a better ADP and more projected points than another
+        # still ending up ranked below them. That's not a real preference. Fix it
+        # with a topological pass: build "B must rank above A" edges wherever B
+        # dominates A (at least as good on both ADP and points, strictly better on
+        # one), then repeatedly place whichever remaining player (a) has no
+        # un-placed dominator and (b) the simulation itself ranked best among those
+        # eligible. This guarantees no dominated player ever outranks its dominator
+        # (checking ALL pairs, not just neighbors) while leaving genuine tradeoffs
+        # (better ADP but fewer points, or vice versa - which are incomparable, not
+        # dominated) exactly where the simulation put them.
+        # Restricted to same-position pairs: across positions, a "worse" ADP/points
+        # player legitimately outscoring a "better" one can be the VORP/scarcity
+        # effect working as intended (e.g. a RB start is harder to replace than a
+        # QB start) - forcing raw-stat dominance there would undo that. Within the
+        # same position there's no such excuse; ADP and points measure the same
+        # thing for the same position, so a same-position violation is unambiguously
+        # sampling noise, not a value judgment.
+        sim_rank = {player: i for i, (player, _) in enumerate(sorted_players)}
+        remaining = set(sim_rank)
+        dominators = {player: set() for player in remaining}
+        for a in remaining:
+            for b in remaining:
+                if a is b or a.position != b.position:
+                    continue
+                if (b.adp <= a.adp and projection_cache[b.name] >= projection_cache[a.name]
+                        and (b.adp < a.adp or projection_cache[b.name] > projection_cache[a.name])):
+                    dominators[a].add(b)
+
+        ordered = []
+        while remaining:
+            eligible = [p for p in remaining if not (dominators[p] & remaining)]
+            next_player = min(eligible, key=lambda p: sim_rank[p])
+            ordered.append(next_player)
+            remaining.discard(next_player)
+
+        # The topological pass fixes the ORDER but a dominated player can still carry
+        # a higher raw simulated score than the dominator now listed above it (that's
+        # exactly the noise being corrected for) - showing that raw number next to a
+        # lower list position would look self-contradictory. Clamp each displayed
+        # score to the running minimum so far down the list, so the numbers shown are
+        # never inconsistent with the order they're shown in.
+        running_min = float('inf')
+        sorted_players = []
+        for player in ordered:
+            running_min = min(running_min, adjusted_scores[player])
+            sorted_players.append((player, running_min))
 
         recommendations = []
         for player, score in sorted_players[:num_recommendations]:
