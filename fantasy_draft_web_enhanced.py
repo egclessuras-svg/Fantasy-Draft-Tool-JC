@@ -1388,6 +1388,79 @@ def _generate_opponent_trajectories(assistant, num_trajectories=NUM_OPPONENT_TRA
     return trajectories
 
 
+def _pick_for_user_turn(assistant, user_roster, taken, projection_cache):
+    """Decide the simulated user's pick for one turn, following this league's
+    autopick plan in strict order (each phase only runs once the one before it
+    has nothing left to fill - it's a hard partition, not a scoring blend):
+
+      1. Fill every starting slot (QB/RB/WR/TE/FLEX) plus the first 2 bench
+         slots by best ADP alone - no points, no need-weighting, no bench
+         discount. K/DST are never eligible here even if their slot is open.
+      2. Fill the remaining 4 bench slots using the existing depth-discounted
+         bench-value formula, so a genuinely good backup beats a merely
+         ADP-favored one once the earlier "just take best ADP" phase is done.
+      3. Once 1-2 are both full, the only slots left are K and DST - take
+         whichever is still needed, by projected points.
+
+    A position at its league roster cap (MAX_POSITION_COUNTS, e.g. a 4th QB)
+    is never eligible, in any phase.
+    """
+    roster_needs = get_roster_needs_for_simulation_web_projections(assistant, user_roster, projection_cache)
+    starting_need = (
+        roster_needs.get('QB', 0) + roster_needs.get('RB', 0)
+        + roster_needs.get('WR', 0) + roster_needs.get('TE', 0)
+        + roster_needs.get('FLEX', 0)
+    )
+    bench_filled = roster_needs.get('BN_FILLED', 0)
+    max_bench = assistant.roster_constraints.get('BN', 6)
+
+    def eligible(player):
+        if player in taken:
+            return False
+        cap = MAX_POSITION_COUNTS.get(player.position)
+        return cap is None or _position_count(user_roster, player.position) < cap
+
+    if starting_need > 0 or bench_filled < 2:
+        # Phase 1: starting lineup + first 2 bench slots, by ADP alone.
+        candidates = []
+        for player in assistant.available_players:
+            if not eligible(player) or player.position in ('K', 'DST'):
+                continue
+            if starting_need > 0:
+                fills_position = roster_needs.get(player.position, 0) > 0
+                fills_flex = player.position in ('RB', 'WR', 'TE') and roster_needs.get('FLEX', 0) > 0
+                if not (fills_position or fills_flex):
+                    continue
+            candidates.append(player)
+        return min(candidates, key=lambda p: p.adp) if candidates else None
+
+    if bench_filled < max_bench:
+        # Phase 2: remaining bench slots, by depth-discounted bench value.
+        best_player, best_value = None, float('-inf')
+        for player in assistant.available_players:
+            if not eligible(player) or player.position not in ('QB', 'RB', 'WR', 'TE'):
+                continue
+            value = calculate_bench_value_for_player_web_projections(player, user_roster, projection_cache)
+            if value > best_value:
+                best_value = value
+                best_player = player
+        return best_player
+
+    # Phase 3: only K/DST starting slots remain - take whichever is still
+    # needed, by projected points.
+    best_player, best_points = None, float('-inf')
+    for player in assistant.available_players:
+        if not eligible(player) or player.position not in ('K', 'DST'):
+            continue
+        if roster_needs.get(player.position, 0) <= 0:
+            continue
+        points = projection_cache.get(player.name, get_player_projection(player.name, selected_scoring_format))
+        if points > best_points:
+            best_points = points
+            best_player = player
+    return best_player
+
+
 def _replay_trajectory_with_candidate(assistant, candidate, trajectory, projection_cache):
     """Cheaply replay one pre-generated trajectory with `candidate` drafted at the
     current pick. Opponent picks are read straight from the trajectory; the user's
@@ -1404,42 +1477,7 @@ def _replay_trajectory_with_candidate(assistant, candidate, trajectory, projecti
 
     for team_name, trajectory_player in trajectory:
         if team_name == user_team:
-            roster_needs = get_roster_needs_for_simulation_web_projections(assistant, sim_roster[user_team], projection_cache)
-            best_player, best_score = None, float('-inf')
-
-            for player in assistant.available_players:
-                if player in taken:
-                    continue
-                cap = MAX_POSITION_COUNTS.get(player.position)
-                if cap is not None and _position_count(sim_roster[user_team], player.position) >= cap:
-                    continue  # league roster cap - e.g. a 4th QB is not a legal pick
-                position_need = roster_needs.get(player.position, 0)
-
-                if position_need > 0:
-                    # Fix for issue #1: this used to fetch the projection and then
-                    # score purely by static ADP, ignoring it. Now the projection is
-                    # what drives the pick, same as everywhere else in the app.
-                    player_projected = projection_cache.get(player.name, get_player_projection(player.name, selected_scoring_format))
-                    player_value = player_projected + 100 + random.uniform(-5, 5)
-                elif roster_needs.get('BN', 0) > 0:
-                    # Bench-tier picks are valued by their (position-appropriate,
-                    # depth-discounted) bench value ALONE, not full projected points
-                    # plus a bonus - a full-points-plus-bonus score let a QB (whose
-                    # raw point totals sit far above any other position at every
-                    # depth) out-bid a properly-discounted bench RB/WR every time,
-                    # so the simulated team kept hoarding backup QBs instead of
-                    # filling bench RB/WR/TE. Applies to QB the same way it already
-                    # did to RB/WR/TE; K/DST still never make sense as bench stashes.
-                    if player.position in ['QB', 'RB', 'WR', 'TE']:
-                        player_value = calculate_bench_value_for_player_web_projections(player, sim_roster[user_team], projection_cache) + random.uniform(-5, 5)
-                    else:
-                        continue
-                else:
-                    continue
-
-                if player_value > best_score:
-                    best_score = player_value
-                    best_player = player
+            best_player = _pick_for_user_turn(assistant, sim_roster[user_team], taken, projection_cache)
 
             if best_player:
                 sim_roster[user_team].append(best_player)
@@ -1738,29 +1776,40 @@ def get_roster_needs_for_simulation_web_projections(assistant, roster, projectio
     
     # Calculate total bench spots used (only actual bench players)
     total_bench_used = len(bench_players)
-    
+
     max_bench = assistant.roster_constraints.get('BN', 6)
     bench_available = max(0, max_bench - total_bench_used)
-    
-    # Calculate needs for starting positions
+
+    # Calculate needs for starting positions. DST's starter slot is configured
+    # under the 'DEF' key in roster_constraints (players themselves are tagged
+    # 'DST') - read from there rather than a 'DST' key that's never actually set.
     needs = {
         'QB': max(0, assistant.roster_constraints.get('QB', 1) - position_counts['QB']),
         'WR': max(0, assistant.roster_constraints.get('WR', 2) - position_counts['WR']),
         'RB': max(0, assistant.roster_constraints.get('RB', 2) - position_counts['RB']),
         'TE': max(0, assistant.roster_constraints.get('TE', 1) - position_counts['TE']),
         'K': max(0, assistant.roster_constraints.get('K', 1) - position_counts['K']),
-        'DST': max(0, assistant.roster_constraints.get('DST', 1) - position_counts['DST'])
+        'DST': max(0, assistant.roster_constraints.get('DEF', 1) - position_counts['DST']),
+        # Previously never set, so `roster_needs.get('FLEX', 0) > 0` elsewhere in
+        # the codebase always evaluated to False - an open FLEX slot was
+        # invisible to the "is this a starting need" checks.
+        'FLEX': max(0, assistant.roster_constraints.get('FLEX', 0) - filled_positions['FLEX'])
     }
-    
+    # Bench slots already used by skill-position players (QB/RB/WR/TE) - used to
+    # tell apart "first N bench picks" from "later bench picks" phases.
+    needs['BN_FILLED'] = total_bench_used
+
     # If bench is full, prioritize filling remaining roster slots
     if bench_available == 0:
         # Only allow drafting players that fill remaining roster slots
-        return {pos: count for pos, count in needs.items() if count > 0}
-    
+        trimmed = {pos: count for pos, count in needs.items() if pos != 'BN_FILLED' and count > 0}
+        trimmed['BN_FILLED'] = total_bench_used
+        return trimmed
+
     # If bench has space, allow drafting any position
     # Add bench availability to the needs calculation
     needs['BN'] = bench_available
-    
+
     return needs
 
 def calculate_bench_value_for_player_web_projections(player, team_roster, projection_cache=None):
