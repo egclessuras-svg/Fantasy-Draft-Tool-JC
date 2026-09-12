@@ -1723,58 +1723,39 @@ def get_roster_needs_for_simulation_web_projections(assistant, roster, projectio
 
     return needs
 
+# Bench-tier value curves: bench_depth 0 is the 1st bench player at that
+# position, 1 is the 2nd, and so on. A depth beyond the list repeats the
+# list's last entry (RB/WR bottom out at 5%, TE bottom out at 0% after the
+# first bench spot, QB is 0% for every bench QB past the first).
+BENCH_VALUE_CURVES = {
+    'QB': [0.35, 0.0],
+    'RB': [0.25, 0.12, 0.075, 0.05, 0.05, 0.05],
+    'WR': [0.20, 0.10, 0.05, 0.05],
+    'TE': [0.05, 0.0, 0.0],
+}
+
+
 def calculate_bench_value_for_player_web_projections(player, team_roster, projection_cache=None):
     """Calculate bench value for a player using web app's projection system."""
     if not team_roster:
         return 0.0
-    
+
+    curve = BENCH_VALUE_CURVES.get(player.position)
+    if not curve:
+        return 0.0  # K/DST (and anything else) have 0% bench value
+
     # Get player's projected points using cached value or web app's system
     player_projected = projection_cache.get(player.name, get_player_projection(player.name, selected_scoring_format))
-    
+
     # Count current bench players by position (excluding current player)
     bench_counts = {'QB': 0, 'RB': 0, 'WR': 0, 'TE': 0, 'K': 0, 'DST': 0}
     for p in team_roster:
         if p.position in bench_counts and p.name != player.name:
             bench_counts[p.position] += 1
-    
-    # Get bench depth for the player's position
+
     bench_depth = bench_counts.get(player.position, 0)
-    
-    if player.position == 'QB':
-        if bench_depth == 0:
-            return player_projected * 0.35  # 35% for 1st bench QB
-        else:
-            return 0.0  # All following QBs worth 0%
-    elif player.position == 'RB':
-        if bench_depth == 0:
-            return player_projected * 0.22  # 22% for 1st bench RB
-        elif bench_depth == 1:
-            return player_projected * 0.14  # 14% for 2nd bench RB
-        elif bench_depth == 2:
-            return player_projected * 0.12  # 12% for 3rd bench RB
-        elif bench_depth == 3:
-            return player_projected * 0.05  # 5% for 4th bench RB
-        else:
-            return player_projected * 0.05  # 5% for 5th+ bench RB
-    elif player.position == 'WR':
-        if bench_depth == 0:
-            return player_projected * 0.22  # 22% for 1st bench WR
-        elif bench_depth == 1:
-            return player_projected * 0.14  # 14% for 2nd bench WR
-        elif bench_depth == 2:
-            return player_projected * 0.12  # 12% for 3rd bench WR
-        elif bench_depth == 3:
-            return player_projected * 0.05  # 5% for 4th bench WR
-        else:
-            return player_projected * 0.05  # 5% for 5th+ bench WR
-    elif player.position == 'TE':
-        return 0.0  # All TEs have 0% bench value
-    elif player.position == 'K':
-        return 0.0  # Kickers have 0% bench value
-    elif player.position == 'DST':
-        return 0.0  # Defense has 0% bench value
-    else:
-        return 0.0
+    tier = min(bench_depth, len(curve) - 1)
+    return player_projected * curve[tier]
 
 
 @app.route('/api/roster_needs')

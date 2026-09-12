@@ -97,49 +97,30 @@
             color: #888;
             margin-left: 8px;
         }
-        .ppr-points {
-            display: flex;
-            gap: 8px;
-            margin-left: 1rem;
-        }
-        .ppr-point {
-            background: #f8f9fa;
-            padding: 2px 8px;
-            border-radius: 5px;
-            font-size: 0.8rem;
-            text-align: center;
-            min-width: 48px;
-        }
-        .ppr-point.full-ppr {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-        .ppr-point.half-ppr {
-            background: #fff3e0;
-            color: #f57c00;
-        }
-        .ppr-point.non-ppr {
-            background: #f3e5f5;
-            color: #7b1fa2;
-        }
         .star-toggle {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
+            display: inline-flex;
+            width: 22px;
+            height: 22px;
             border-radius: 50%;
-            border: 2px solid #adb5bd;
+            border: 2px solid #ced4da;
+            background: #f1f3f5;
             margin-left: 1rem;
             cursor: pointer;
             flex-shrink: 0;
-            transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+            transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.1s;
         }
         .star-toggle:hover {
             border-color: var(--hal-red, #ff2f1a);
+            background: #ffe9e5;
+            transform: scale(1.08);
         }
         .star-toggle.starred {
             background: var(--hal-red, #ff2f1a);
-            border-color: var(--hal-red, #ff2f1a);
-            box-shadow: 0 0 6px rgba(255, 47, 26, 0.7);
+            border-color: var(--hal-red-deep, #7a1710);
+            box-shadow: 0 0 8px rgba(255, 47, 26, 0.65);
+        }
+        .star-toggle.starred:hover {
+            background: var(--hal-red-soft, #ff5a3c);
         }
         .expand-section {
             width: 100%;
@@ -330,11 +311,6 @@
                             <span class="badge position-badge bg-primary ms-2">${player.position}</span>
                             <span class="badge team-badge ms-1">${player.team}</span>
                             <span class="adp-badge ms-2">ADP: ${player.adp}</span>
-                            <div class="ppr-points ms-3">
-                                <span class="ppr-point full-ppr">PPR<br>${player.ppr_points}</span>
-                                <span class="ppr-point half-ppr">Half<br>${player.half_ppr_points}</span>
-                                <span class="ppr-point non-ppr">Non<br>${player.non_ppr_points}</span>
-                            </div>
                         </div>
                         <div class="d-flex align-items-center ms-auto">
                             <span class="star-toggle ${isStarred ? 'starred' : ''}"
