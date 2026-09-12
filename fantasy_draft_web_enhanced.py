@@ -1385,7 +1385,11 @@ def _generate_opponent_trajectories(assistant, num_trajectories=NUM_OPPONENT_TRA
         available = set(base_available)
         team_rosters = {team: list(roster) for team, roster in assistant.drafted_players.items()}
         picks = []
-        pick = assistant.current_pick
+        # Start the SECOND pick after current_pick - the candidate itself
+        # already represents pick `current_pick` and is inserted separately in
+        # _replay_trajectory_with_candidate, so re-including it here gave every
+        # candidate one extra, uncounted "phantom" turn on top of its real one.
+        pick = assistant.current_pick + 1
         while pick <= assistant.total_picks:
             if pick <= len(assistant.draft_order):
                 _, team_id = assistant.draft_order[pick - 1]
@@ -1824,9 +1828,13 @@ def get_roster_needs_for_simulation_web_projections(assistant, roster, projectio
     
     for player in sorted_roster:
         pos = player.position
-        
-        # Check if we can fill a starting position
-        if pos in filled_positions and filled_positions[pos] < assistant.roster_constraints.get(pos, 0):
+
+        # Check if we can fill a starting position. Same DST/DEF key
+        # translation as _position_starter_slots - roster_constraints.get(
+        # 'DST', 0) always returned 0, so a DST always fell to bench here,
+        # overcounting bench usage by one and making the roster look "bench
+        # full" a pick earlier than it actually was.
+        if pos in filled_positions and filled_positions[pos] < _position_starter_slots(assistant, pos):
             # Fill starting position
             filled_positions[pos] += 1
             starters.append(player)
