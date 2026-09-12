@@ -1532,7 +1532,32 @@ def run_simulations_with_web_projections(assistant, num_recommendations=10):
         current_roster = assistant.drafted_players.get(current_team, [])
         roster_needs = get_roster_needs_for_simulation_web_projections(assistant, current_roster, projection_cache)
 
-        candidates = _compute_vorp_candidates(assistant, available_players, projection_cache, current_roster)
+        # Once every starting slot (QB/RB/WR/TE/FLEX) and all 6 bench slots are
+        # filled, the only legal picks left are the K and DST starting slots -
+        # same "last two picks are forced K/DST" rule the simulated user
+        # already follows internally (see _pick_for_user_turn). VORP alone
+        # would never surface a kicker or defense here (their point spread is
+        # far tighter than any skill position's, so they never crack the VORP
+        # pool), which meant the recommendation list could keep suggesting
+        # skill players even with no roster room left to draft them into -
+        # producing an illegal roster with no K or DST at all. Restrict the
+        # candidate pool to exactly what's actually draftable at this point.
+        starting_need = (
+            roster_needs.get('QB', 0) + roster_needs.get('RB', 0)
+            + roster_needs.get('WR', 0) + roster_needs.get('TE', 0)
+            + roster_needs.get('FLEX', 0)
+        )
+        bench_filled = roster_needs.get('BN_FILLED', 0)
+        max_bench = assistant.roster_constraints.get('BN', 6)
+
+        if starting_need == 0 and bench_filled >= max_bench:
+            candidates = [
+                p for p in available_players
+                if p.position in ('K', 'DST') and roster_needs.get(p.position, 0) > 0
+            ]
+            print(f"Roster full except K/DST - restricting candidates to {[c.name for c in candidates]}")
+        else:
+            candidates = _compute_vorp_candidates(assistant, available_players, projection_cache, current_roster)
         print(f"Evaluating {len(candidates)} candidates by value-over-replacement...")
 
         trajectories = _generate_opponent_trajectories(assistant)
