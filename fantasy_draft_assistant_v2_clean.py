@@ -27,17 +27,14 @@ class FantasyDraftAssistant:
         self.raw_stats = {}  # Store raw FantasyPros stats for customization
         self.load_players()
         
-        # League settings (configurable)
-        self.num_teams = 12
+        # League settings (hardcoded for this league)
+        self.num_teams = 8
         self.user_draft_position = 0  # Will be set when draft is initialized
         self.current_round = 1
         self.current_pick = 1
         self.draft_order = []
-        
-        # Calculate total picks (20 rounds * num_teams)
-        self.total_picks = 20 * self.num_teams
-        
-        # Roster constraints (configurable)
+
+        # Roster constraints (hardcoded for this league)
         self.roster_constraints = {
             'QB': 2,
             'WR': 2,
@@ -48,7 +45,9 @@ class FantasyDraftAssistant:
             'DEF': 1,
             'BN': 6  # Bench spots
         }
-        
+
+        self.total_picks = sum(self.roster_constraints.values()) * self.num_teams
+
         # Draft state
         self.drafted_players = {f'Team {i+1}': [] for i in range(self.num_teams)}
         self.available_players = set(self.players)

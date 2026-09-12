@@ -17,6 +17,12 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = 'james_clessuras_ff_secret_key_2024'
 
+# League settings are fixed for this league - not user-configurable.
+LEAGUE_NUM_TEAMS = 8
+LEAGUE_ROSTER_CONSTRAINTS = {
+    'QB': 2, 'RB': 2, 'WR': 2, 'TE': 1, 'FLEX': 1, 'K': 1, 'DEF': 1, 'BN': 6
+}
+
 # Initialize Supabase
 supabase = None
 try:
@@ -961,38 +967,33 @@ def initialize_draft():
     """Initialize a new draft with user's custom projections."""
     try:
         data = request.get_json()
-        num_teams = data.get('num_teams', 12)
+        # League settings (teams, roster, scoring) are fixed for this league -
+        # any values submitted by the client are ignored. Only the user's draft
+        # slot is a real per-draft choice.
+        num_teams = LEAGUE_NUM_TEAMS
         user_position = data.get('user_position', data.get('user_draft_position', 1))
-        scoring_format = data.get('scoring_format', 'ppr')
-        roster_constraints = data.get('roster_constraints', {})
-        
+        roster_constraints = LEAGUE_ROSTER_CONSTRAINTS
+
         # Get user ID from session
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({'success': False, 'error': 'User not authenticated'}), 401
-        
+
         # Initialize draft with user's custom projections
         initialize_draft_with_user_data(user_id)
-        
-        # Set scoring format
-        set_scoring_format(scoring_format)
-        
+
         # Reset draft state
         global draft_assistant
         if draft_assistant:
             # Set the user draft position and number of teams before resetting
             draft_assistant.set_user_draft_position(user_position)
             draft_assistant.set_num_teams(num_teams)
-            
-            # Set roster constraints if provided
-            if roster_constraints:
-                draft_assistant.set_roster_constraints(roster_constraints)
-            
+            draft_assistant.set_roster_constraints(roster_constraints)
+
             draft_assistant.reset_draft()
             print(f"Draft reset: {num_teams} teams, {draft_assistant.total_picks} total picks")
             print(f"Draft initialized: {num_teams} teams, user position {user_position}")
             print(f"Roster constraints: {draft_assistant.roster_constraints}")
-            print(f"Scoring format: {scoring_format}")
             print(f"Draft initialized flag: {draft_assistant.draft_initialized}")
             print("Custom projections disabled as requested")
         else:
@@ -1000,14 +1001,13 @@ def initialize_draft():
                 'success': False,
                 'error': 'Draft assistant not initialized. Please refresh the page and try again.'
             })
-        
+
         return jsonify({
             'success': True,
             'message': 'Draft initialized successfully',
             'draft_info': {
                 'num_teams': num_teams,
                 'user_position': user_position,
-                'scoring_format': scoring_format,
                 'total_picks': draft_assistant.total_picks if draft_assistant else 0,
                 'custom_projections_loaded': 0
             }

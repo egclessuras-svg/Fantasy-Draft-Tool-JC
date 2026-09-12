@@ -323,16 +323,6 @@
                     <div class="card-body">
                         <form id="leagueForm">
                             <div class="mb-3">
-                                <label for="numTeams" class="form-label">Number of Teams</label>
-                                <select class="form-select" id="numTeams">
-                                    <option value="8">8 Teams</option>
-                                    <option value="10">10 Teams</option>
-                                    <option value="12" selected>12 Teams</option>
-                                    <option value="14">14 Teams</option>
-                                    <option value="16">16 Teams</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
                                 <label for="userPosition" class="form-label">Your Draft Position</label>
                                 <select class="form-select" id="userPosition">
                                     <option value="1" selected>1st</option>
@@ -343,82 +333,23 @@
                                     <option value="6">6th</option>
                                     <option value="7">7th</option>
                                     <option value="8">8th</option>
-                                    <option value="9">9th</option>
-                                    <option value="10">10th</option>
-                                    <option value="11">11th</option>
-                                    <option value="12">12th</option>
                                 </select>
                             </div>
-                            
+
                             <div class="mb-3">
-                                <label class="form-label">Scoring Format</label>
-                                <div class="d-flex gap-1 flex-wrap">
-                                    <button type="button" class="btn btn-outline-primary flex-fill" id="pprBtn" onclick="setScoringFormat('ppr')">
-                                        <i class="fas fa-plus me-1"></i>PPR
-                                    </button>
-                                    <button type="button" class="btn btn-outline-info flex-fill" id="halfPprBtn" onclick="setScoringFormat('half-ppr')">
-                                        <i class="fas fa-adjust me-1"></i>Half-PPR
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary flex-fill" id="nonPprBtn" onclick="setScoringFormat('non-ppr')">
-                                        <i class="fas fa-minus me-1"></i>Non-PPR
-                                    </button>
-                                </div>
-                                <small class="form-text text-muted">Select your league's scoring format</small>
+                                <small class="form-text text-muted">
+                                    8-team league &middot; 2 QB, 2 RB, 2 WR, 1 TE, 1 FLEX, 1 K, 1 DST, 6 BENCH &middot; max 3 QB per roster &middot; scoring from the league's own points file
+                                </small>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <div class="alert alert-info">
                                     <i class="fas fa-info-circle me-2"></i>
-                                    <strong>Custom Projections:</strong> The draft assistant will use your custom projections from the Pre-Draft tab. 
+                                    <strong>Custom Projections:</strong> The draft assistant will use your custom projections from the Pre-Draft tab.
                                     Make sure to customize your projections before starting the draft for the best experience.
                                 </div>
                             </div>
-                            
-                            <!-- Roster Settings -->
-                            <div class="mb-3">
-                                <h6 class="form-label">Roster Settings</h6>
-                                <div class="row">
-                                    <div class="col-6">
-                                        <label for="rosterQB" class="form-label small">QB</label>
-                                        <input type="number" class="form-control form-control-sm" id="rosterQB" value="2" min="0" max="3">
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="rosterRB" class="form-label small">RB</label>
-                                        <input type="number" class="form-control form-control-sm" id="rosterRB" value="2" min="0" max="5">
-                                    </div>
-                                </div>
-                                <div class="row mt-2">
-                                    <div class="col-6">
-                                        <label for="rosterWR" class="form-label small">WR</label>
-                                        <input type="number" class="form-control form-control-sm" id="rosterWR" value="2" min="0" max="5">
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="rosterTE" class="form-label small">TE</label>
-                                        <input type="number" class="form-control form-control-sm" id="rosterTE" value="1" min="0" max="3">
-                                    </div>
-                                </div>
-                                <div class="row mt-2">
-                                    <div class="col-6">
-                                        <label for="rosterFLEX" class="form-label small">FLEX</label>
-                                        <input type="number" class="form-control form-control-sm" id="rosterFLEX" value="1" min="0" max="2">
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="rosterK" class="form-label small">K</label>
-                                        <input type="number" class="form-control form-control-sm" id="rosterK" value="1" min="0" max="2">
-                                    </div>
-                                </div>
-                                <div class="row mt-2">
-                                    <div class="col-6">
-                                        <label for="rosterDEF" class="form-label small">DEF</label>
-                                        <input type="number" class="form-control form-control-sm" id="rosterDEF" value="1" min="0" max="2">
-                                    </div>
-                                    <div class="col-6">
-                                        <label for="rosterBENCH" class="form-label small">BENCH</label>
-                                        <input type="number" class="form-control form-control-sm" id="rosterBENCH" value="6" min="0" max="10">
-                                    </div>
-                                </div>
-                            </div>
-                            
+
                             <button type="submit" class="btn btn-primary w-100" id="initButton">
                                 <i class="fas fa-play me-2"></i>Initialize Draft
                             </button>
@@ -599,16 +530,7 @@
             
             // Initial load
             loadAllData();
-            
-            // Initialize user position options
-            updateUserPositionOptions();
-            
-            // Load current settings
-            loadCurrentSettings();
-        
-        // Log initial state
-        console.log('Page loaded. Initial scoring format:', selectedScoringFormat);
-            
+
             // Set up event listeners
             setupEventListeners();
             
@@ -790,11 +712,6 @@
                 initializeDraft();
             });
 
-            // Update user position options when number of teams changes
-            document.getElementById('numTeams').addEventListener('change', function() {
-                updateUserPositionOptions();
-            });
-
             // Search functionality
             document.getElementById('searchInput').addEventListener('input', function() {
                 const query = this.value.trim();
@@ -834,44 +751,23 @@
         async function initializeDraft() {
             const initButton = document.getElementById('initButton');
             const originalText = initButton.innerHTML;
-            
-            // Check if scoring format is selected
-            console.log('Current selected scoring format:', selectedScoringFormat);
-            
-            if (!selectedScoringFormat || !['ppr', 'half-ppr', 'non-ppr'].includes(selectedScoringFormat)) {
-                showAlert('Please select a scoring format (PPR, Half-PPR, or Standard) before initializing the draft', 'warning');
-                return;
-            }
-            
+
             // Show loading state
             initButton.disabled = true;
             initButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Initializing...';
-            
+
             try {
-                const numTeams = parseInt(document.getElementById('numTeams').value);
                 const userPosition = parseInt(document.getElementById('userPosition').value);
 
-                console.log('Initializing draft with scoring format:', selectedScoringFormat);
-
+                // League settings (teams, roster, scoring) are fixed for this
+                // league and enforced server-side regardless of what's sent here.
                 const response = await fetch('/api/init', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        num_teams: numTeams,
-                        user_position: userPosition,
-                        scoring_format: selectedScoringFormat,
-                        roster_constraints: {
-                            'QB': parseInt(document.getElementById('rosterQB').value),
-                            'RB': parseInt(document.getElementById('rosterRB').value),
-                            'WR': parseInt(document.getElementById('rosterWR').value),
-                            'TE': parseInt(document.getElementById('rosterTE').value),
-                            'FLEX': parseInt(document.getElementById('rosterFLEX').value),
-                            'K': parseInt(document.getElementById('rosterK').value),
-                            'DEF': parseInt(document.getElementById('rosterDEF').value),
-                            'BN': parseInt(document.getElementById('rosterBENCH').value)
-                        }
+                        user_position: userPosition
                     })
                 });
 
