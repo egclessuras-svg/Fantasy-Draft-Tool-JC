@@ -245,13 +245,34 @@ body.hal-theme {
   box-shadow: var(--glow-sm);
 }
 
-.hal-theme .roster-slot {
-  background: var(--panel-raised);
-  border: 1px dashed var(--hairline);
-  border-radius: 0;
+.hal-theme .roster-slot,
+.hal-theme .roster-slot.filled,
+.hal-theme .roster-slot.empty {
+  background: var(--panel-raised) !important;
+  border: 1px dashed var(--hairline) !important;
+  border-radius: 0 !important;
+  color: var(--text);
 }
-.hal-theme .roster-slot.filled { border-style: solid; border-color: var(--hal-red-deep); }
+.hal-theme .roster-slot.filled { border-style: solid !important; border-color: var(--hal-red-deep) !important; }
 .hal-theme .roster-slot.empty { color: var(--text-faint); }
+
+/* Pre-draft player list - same treatment as .player-card so both pages
+   read as one system instead of one dark and one stark white. */
+.hal-theme .players-horizontal-list {
+  background: var(--panel-raised) !important;
+  box-shadow: none !important;
+}
+.hal-theme .player-row {
+  border-bottom: 1px solid var(--hairline) !important;
+  border-left: 3px solid transparent;
+  color: var(--text);
+}
+.hal-theme .player-row:hover {
+  background: var(--panel) !important;
+  border-left-color: var(--hal-red);
+}
+.hal-theme .team-badge { background: var(--steel) !important; }
+.hal-theme .adp-badge { color: var(--text-dim) !important; }
 
 /* -------------------------------------------------------------------------
    Buttons
