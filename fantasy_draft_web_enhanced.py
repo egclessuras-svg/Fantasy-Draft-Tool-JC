@@ -1268,7 +1268,6 @@ def run_simulation():
         return jsonify({'success': False, 'error': str(e)})
 
 NUM_OPPONENT_TRAJECTORIES = 40
-VORP_CANDIDATE_POOL_SIZE = 15
 
 # League rule: no team may roster more than this many players at these positions
 # (a 4th+ QB is not draftable at all, not just a bad bench stash).
@@ -1293,14 +1292,35 @@ def _position_starter_slots(assistant, position):
     return assistant.roster_constraints.get(key, 1)
 
 
-def _compute_vorp_candidates(assistant, available_players, projection_cache, current_roster=None, pool_size=VORP_CANDIDATE_POOL_SIZE):
-    """Rank available players by value over replacement (projected points above the
-    last startable player at their position), instead of only ever considering the
-    single highest-projected player at each position. This lets a strong RB2 or WR2
-    compete for a recommendation slot against the position's nominal #1. Positions
-    already at their league-mandated roster cap (see MAX_POSITION_COUNTS) are
-    excluded entirely - a 4th QB is never a legal pick, so it should never be
-    recommended, not just devalued."""
+VORP_TOP_N = 5  # how many players the opportunistic cross-position VORP leg contributes
+
+
+def _compute_vorp_candidates(assistant, available_players, projection_cache, current_roster=None):
+    """Build the recommendation candidate pool from three merged sources instead
+    of a single global value-over-replacement (VORP) ranking. Pure VORP measures
+    each position's "gap above replacement" from whatever's CURRENTLY left in the
+    pool, which shifts as the draft progresses - a heavily-drafted position's gap
+    collapses while an untouched position's gap stays artificially large, and
+    with no per-position floor, VORP alone could (and did, verified empirically)
+    fill the entire candidate list with one position and exclude another
+    completely (e.g. 8 QBs and 0 WRs by round 5). Merging three sources fixes
+    that:
+
+      1. Each position's single best-ADP available player.
+      2. Each position's single highest-projected-points available player.
+      3. The top VORP_TOP_N players overall by VORP (the "catch a real value
+         outlier" layer, e.g. a WR2 who's fallen further than ADP suggests).
+
+    (1) and (2) guarantee every position has at least one representative
+    regardless of what VORP thinks of it at this moment, including K/DST -
+    there's no special-case timing rule here; if a kicker's own numbers make it
+    a position leader, it's included, and the simulation itself is what will
+    determine whether it's actually worth recommending.
+
+    Positions already at their league-mandated roster cap (see
+    MAX_POSITION_COUNTS) are excluded from all three sources - a 4th QB is
+    never a legal pick, so it should never be shown, not just outscored.
+    """
     current_roster = current_roster or []
     by_position = {}
     for player in available_players:
@@ -1309,23 +1329,36 @@ def _compute_vorp_candidates(assistant, available_players, projection_cache, cur
             continue
         by_position.setdefault(player.position, []).append(player)
 
+    candidates = {}  # name -> player, de-duplicating across the three sources
+
+    # Sources 1 & 2: each position's ADP leader and points leader.
+    for position, players in by_position.items():
+        adp_leader = min(players, key=lambda p: p.adp)
+        points_leader = max(players, key=lambda p: projection_cache.get(p.name, p.projected_points))
+        candidates[adp_leader.name] = adp_leader
+        candidates[points_leader.name] = points_leader
+
+    # Source 3: top VORP_TOP_N players overall by value-over-replacement.
     flex_slots = assistant.roster_constraints.get('FLEX', 0)
     scored = []
     for position, players in by_position.items():
-        players.sort(key=lambda p: projection_cache.get(p.name, p.projected_points), reverse=True)
+        players_sorted = sorted(players, key=lambda p: projection_cache.get(p.name, p.projected_points), reverse=True)
         starters = _position_starter_slots(assistant, position)
         if position in ('RB', 'WR', 'TE'):
             starters += flex_slots / 3.0  # rough share of the FLEX spot(s)
-        replacement_rank = max(1, min(len(players), round(assistant.num_teams * starters)))
+        replacement_rank = max(1, min(len(players_sorted), round(assistant.num_teams * starters)))
         replacement_points = projection_cache.get(
-            players[replacement_rank - 1].name, players[replacement_rank - 1].projected_points
+            players_sorted[replacement_rank - 1].name, players_sorted[replacement_rank - 1].projected_points
         )
-        for player in players:
+        for player in players_sorted:
             projected = projection_cache.get(player.name, player.projected_points)
             scored.append((projected - replacement_points, player))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-    return [player for _, player in scored[:pool_size]]
+    for _, player in scored[:VORP_TOP_N]:
+        candidates[player.name] = player
+
+    return list(candidates.values())
 
 
 def _generate_opponent_trajectories(assistant, num_trajectories=NUM_OPPONENT_TRAJECTORIES):
