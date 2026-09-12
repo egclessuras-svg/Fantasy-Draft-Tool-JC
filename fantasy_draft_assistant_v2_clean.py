@@ -132,9 +132,7 @@ class FantasyDraftAssistant:
         # Use instance scoring format if not specified
         if scoring_format is None:
             scoring_format = self.scoring_format
-        else:
-            scoring_format = scoring_format
-            
+
         # If player has custom projections, use the correct format-specific points
         if player.name in self.custom_projections:
             # Check if we have format-specific projections in custom_stats
@@ -144,26 +142,10 @@ class FantasyDraftAssistant:
                     format_points = self.custom_stats[player.name][format_key]
                     if format_points is not None:
                         return format_points
-            
-        # For QBs, Ks, and DEFs, scoring is the same across formats
-        if player.position in ['QB', 'K', 'DEF']:
-            return player.projected_points if player.projected_points is not None else 0.0
-        
-        # For RB, WR, TE, we need to calculate based on format
-        # For now, use the default projected points (which should be PPR)
-        # In a full implementation, we would recalculate from raw stats
-        if scoring_format == 'ppr':
-            return player.projected_points if player.projected_points is not None else 0.0
-        elif scoring_format == 'half-ppr':
-            # Estimate half-PPR by reducing reception points
-            base_points = player.projected_points if player.projected_points is not None else 0.0
-            # This is a rough estimate - in reality we'd recalculate from raw stats
-            return base_points * 0.85  # Rough estimate for half-PPR
-        else:  # standard
-            # Estimate standard by removing reception points
-            base_points = player.projected_points if player.projected_points is not None else 0.0
-            # This is a rough estimate - in reality we'd recalculate from raw stats
-            return base_points * 0.7  # Rough estimate for standard
+
+        # The league uses a single scoring mode taken directly from the
+        # rankings CSV - no PPR/half-PPR/standard distinction.
+        return player.projected_points if player.projected_points is not None else 0.0
     
     def _calculate_custom_projected_points(self, player: Player) -> float:
         """Calculate custom projected points for a player based on custom stats."""
