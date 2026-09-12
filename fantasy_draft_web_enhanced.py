@@ -1729,9 +1729,9 @@ def get_roster_needs_for_simulation_web_projections(assistant, roster, projectio
 # first bench spot, QB is 0% for every bench QB past the first).
 BENCH_VALUE_CURVES = {
     'QB': [0.35, 0.0],
-    'RB': [0.25, 0.12, 0.075, 0.05, 0.05, 0.05],
+    'RB': [0.25, 0.12, 0.05, 0.05, 0.05, 0.05],
     'WR': [0.20, 0.10, 0.05, 0.05],
-    'TE': [0.05, 0.0, 0.0],
+    'TE': [0.03, 0.0, 0.0],
 }
 
 
