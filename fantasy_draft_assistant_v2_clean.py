@@ -66,6 +66,10 @@ class FantasyDraftAssistant:
         self.custom_projections = {}
         self.custom_stats = {}
         self.scoring_format = 'non-ppr'  # Default scoring format
+
+        # Players the user has starred on the pre-draft page as ones they
+        # want surfaced once the draft gets close to their ADP.
+        self.starred_players = set()
         
         self._generate_draft_order()
     

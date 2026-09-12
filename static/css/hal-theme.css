@@ -103,6 +103,18 @@ body.hal-theme {
   .hal-eye { animation: none; box-shadow: var(--glow-md); }
 }
 
+/* Marks a recommendation as one the user starred on the pre-draft page */
+.starred-pick-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--hal-red);
+  box-shadow: 0 0 6px rgba(255, 47, 26, 0.75);
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
 /* Loading indicator replacement: hide spinner icons, show an eye instead */
 .hal-theme .fa-spinner {
   visibility: hidden;

@@ -994,7 +994,8 @@ def get_recommendations():
                     'adp': rec['adp'],
                     'projected_points': projected_points,
                     'expected_season_score': rec['expected_season_score'],
-                    'is_customized': rec['name'] in custom_projections_cache
+                    'is_customized': rec['name'] in custom_projections_cache,
+                    'is_starred': rec['name'] in assistant.starred_players
                 })
             
             return jsonify({
@@ -1082,6 +1083,15 @@ def _position_starter_slots(assistant, position):
 
 
 VORP_TOP_N = 5  # how many players the opportunistic cross-position VORP leg contributes
+
+# Starred players (marked on the pre-draft page) get pulled into the candidate
+# pool once the draft is within this many picks of their ADP, so they get a
+# real simulated score instead of being silently excluded by VORP.
+STARRED_CANDIDATE_ADP_WINDOW = 24
+# Within this (tighter) window, a starred player is additionally guaranteed a
+# spot in the displayed recommendation list starting at slot 5 - never ahead
+# of the top 4, which stay purely score-driven.
+STARRED_HIGHLIGHT_ADP_WINDOW = 16
 
 
 def _compute_vorp_candidates(assistant, available_players, projection_cache, current_roster=None):
@@ -1338,6 +1348,8 @@ def run_simulations_with_web_projections(assistant, num_recommendations=10):
             print("Not user's turn")
             return []
 
+        current_pick = current_pick_info.get('pick', assistant.current_pick)
+
         available_players = assistant.get_available_players()
         if not available_players:
             print("No available players")
@@ -1376,7 +1388,9 @@ def run_simulations_with_web_projections(assistant, num_recommendations=10):
         bench_filled = roster_needs.get('BN_FILLED', 0)
         max_bench = assistant.roster_constraints.get('BN', 6)
 
-        if starting_need == 0 and bench_filled >= max_bench:
+        roster_full_except_kdst = starting_need == 0 and bench_filled >= max_bench
+
+        if roster_full_except_kdst:
             candidates = [
                 p for p in available_players
                 if p.position in ('K', 'DST') and roster_needs.get(p.position, 0) > 0
@@ -1384,6 +1398,23 @@ def run_simulations_with_web_projections(assistant, num_recommendations=10):
             print(f"Roster full except K/DST - restricting candidates to {[c.name for c in candidates]}")
         else:
             candidates = _compute_vorp_candidates(assistant, available_players, projection_cache, current_roster)
+
+            # Pull in any starred player close enough to their ADP to be a real
+            # possibility, even if VORP alone wouldn't have surfaced them, so
+            # they get an actual simulated score instead of being silently
+            # excluded. Skipped once only K/DST slots remain - a starred
+            # skill player can't legally be drafted there regardless of ADP.
+            candidate_names = {c.name for c in candidates}
+            for player in available_players:
+                cap = MAX_POSITION_COUNTS.get(player.position)
+                if cap is not None and _position_count(current_roster, player.position) >= cap:
+                    continue
+                if (player.name in assistant.starred_players
+                        and player.name not in candidate_names
+                        and abs(player.adp - current_pick) <= STARRED_CANDIDATE_ADP_WINDOW):
+                    candidates.append(player)
+                    candidate_names.add(player.name)
+
         print(f"Evaluating {len(candidates)} candidates by value-over-replacement...")
 
         trajectories = _generate_opponent_trajectories(assistant)
@@ -1477,6 +1508,24 @@ def run_simulations_with_web_projections(assistant, num_recommendations=10):
             running_min = min(running_min, adjusted_scores[player])
             sorted_players.append((player, running_min))
 
+        # A starred player close enough to their ADP is guaranteed a spot in
+        # the displayed list starting at slot 5 (index 4) - never ahead of
+        # the top 4, which stay purely score-driven, but never buried past
+        # the visible cutoff or missing from the list either. A starred
+        # player that already earns a top-4 spot on its own merits stays
+        # there untouched; this only reorders what falls after it.
+        if not roster_full_except_kdst:
+            top4 = sorted_players[:4]
+            rest = sorted_players[4:]
+            highlighted_names = {
+                player.name for player, _ in rest
+                if player.name in assistant.starred_players
+                and abs(player.adp - current_pick) <= STARRED_HIGHLIGHT_ADP_WINDOW
+            }
+            highlighted = [entry for entry in rest if entry[0].name in highlighted_names]
+            others = [entry for entry in rest if entry[0].name not in highlighted_names]
+            sorted_players = top4 + highlighted + others
+
         recommendations = []
         for player, score in sorted_players[:num_recommendations]:
             recommendations.append({
@@ -1486,7 +1535,8 @@ def run_simulations_with_web_projections(assistant, num_recommendations=10):
                 'adp': player.adp,
                 'projected_points': projection_cache[player.name],
                 'expected_season_score': score,
-                'is_customized': False  # Custom projections disabled
+                'is_customized': False,  # Custom projections disabled
+                'is_starred': player.name in assistant.starred_players
             })
 
         return recommendations
@@ -2289,6 +2339,28 @@ def get_draft_complete_status():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/toggle_star_player', methods=['POST'])
+def toggle_star_player():
+    """Toggle whether a player is starred on the pre-draft page."""
+    try:
+        assistant = get_draft_assistant()
+        data = request.get_json()
+        player_name = data.get('player_name')
+
+        if not player_name:
+            return jsonify({'success': False, 'error': 'Player name is required'}), 400
+
+        if player_name in assistant.starred_players:
+            assistant.starred_players.discard(player_name)
+            starred = False
+        else:
+            assistant.starred_players.add(player_name)
+            starred = True
+
+        return jsonify({'success': True, 'player_name': player_name, 'starred': starred})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/load_players_with_custom_projections')
 def load_players_with_custom_projections():
     """Load players with custom projections and raw stats for customization."""
@@ -2451,7 +2523,8 @@ def load_players_with_custom_projections():
                 'half_ppr_points': half_ppr_points,
                 'non_ppr_points': non_ppr_points,
                 'raw_stats': raw_stats,
-                'is_customized': is_customized
+                'is_customized': is_customized,
+                'is_starred': player.name in assistant.starred_players
             }
             players_data.append(player_data)
         

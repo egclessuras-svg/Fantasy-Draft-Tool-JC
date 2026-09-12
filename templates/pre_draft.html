@@ -32,25 +32,6 @@
             background: #f8f9fa;
             color: #495057;
         }
-        .customize-toggle {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-weight: bold;
-            margin-bottom: 20px;
-        }
-        .customize-toggle:hover {
-            background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
-            color: white;
-        }
-        .customize-toggle.active {
-            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        }
-        .customize-toggle.active:hover {
-            background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
-        }
         .filter-section {
             background: white;
             border-radius: 10px;
@@ -141,24 +122,24 @@
             background: #f3e5f5;
             color: #7b1fa2;
         }
-        .edit-icon-btn {
-            background: none;
-            border: none;
-            color: #007bff;
-            font-size: 1.2rem;
+        .star-toggle {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid #adb5bd;
             margin-left: 1rem;
             cursor: pointer;
-            transition: color 0.2s;
-            z-index: 2;
+            flex-shrink: 0;
+            transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
         }
-        .edit-icon-btn:hover {
-            color: #0056b3;
+        .star-toggle:hover {
+            border-color: var(--hal-red, #ff2f1a);
         }
-        .customized-badge {
-            margin-left: 0.5rem;
-            color: #28a745;
-            font-size: 1rem;
-            vertical-align: middle;
+        .star-toggle.starred {
+            background: var(--hal-red, #ff2f1a);
+            border-color: var(--hal-red, #ff2f1a);
+            box-shadow: 0 0 6px rgba(255, 47, 26, 0.7);
         }
         .expand-section {
             width: 100%;
@@ -170,124 +151,6 @@
         }
         .expand-section.show {
             display: block;
-        }
-        .stat-input {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        .stat-input label {
-            min-width: 120px;
-            font-weight: 500;
-        }
-        .stat-input input {
-            width: 100px;
-        }
-        .save-button {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        .save-button:hover {
-            background: #218838;
-        }
-        .reset-button {
-            background: #6c757d;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            font-weight: bold;
-            margin-top: 10px;
-            margin-left: 10px;
-        }
-        .reset-button:hover {
-            background: #5a6268;
-        }
-        
-        /* Modal styles for player editing */
-        .modal-backdrop {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 1040;
-            display: none;
-        }
-        
-        .modal-backdrop.show {
-            display: block;
-        }
-        
-        .edit-modal {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            border-radius: 10px;
-            padding: 30px;
-            max-width: 500px;
-            width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
-            z-index: 1050;
-            display: none;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-        }
-        
-        .edit-modal.show {
-            display: block;
-        }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .modal-title {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .close-modal {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            color: #6c757d;
-            cursor: pointer;
-            padding: 0;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .close-modal:hover {
-            color: #333;
-        }
-        
-        .modal-body {
-            margin-bottom: 20px;
-        }
-        
-        .modal-footer {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
         }
     </style>
 </head>
@@ -326,15 +189,6 @@
                         </a>
                     </li>
                 </ul>
-            </div>
-        </div>
-
-        <!-- Customize Toggle -->
-        <div class="row">
-            <div class="col-12 text-center">
-                <button class="btn customize-toggle" id="customizeToggle" onclick="toggleCustomization()">
-                    <i class="fas fa-edit me-2"></i>Enable Customization
-                </button>
             </div>
         </div>
 
@@ -398,52 +252,10 @@
         </div>
     </div>
 
-    <!-- Edit Player Modal -->
-    <div class="modal-backdrop" id="modalBackdrop"></div>
-    <div class="edit-modal" id="editModal">
-        <div class="modal-header">
-            <div class="modal-title" id="modalTitle">Edit Player Stats</div>
-            <button class="close-modal" onclick="closeModal()">&times;</button>
-        </div>
-        <div class="modal-body" id="modalBody">
-            <!-- Stats editor will be inserted here -->
-        </div>
-        <div class="modal-footer">
-            <button class="save-button" onclick="savePlayerStats()">
-                <i class="fas fa-save me-1"></i>Save Changes
-            </button>
-            <button class="reset-button" onclick="resetPlayerStats()">
-                <i class="fas fa-undo me-1"></i>Reset
-            </button>
-            <button class="btn btn-secondary" onclick="closeModal()">
-                <i class="fas fa-times me-1"></i>Cancel
-            </button>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let allPlayers = [];
         let filteredPlayers = [];
-        let customizationEnabled = false;
-        let currentEditingIndex = null;
-
-        function toggleCustomization() {
-            customizationEnabled = !customizationEnabled;
-            const toggle = document.getElementById('customizeToggle');
-            
-            if (customizationEnabled) {
-                toggle.innerHTML = '<i class="fas fa-times me-2"></i>Disable Customization';
-                toggle.classList.add('active');
-            } else {
-                toggle.innerHTML = '<i class="fas fa-edit me-2"></i>Enable Customization';
-                toggle.classList.remove('active');
-            }
-            
-            if (allPlayers.length > 0) {
-                displayPlayers();
-            }
-        }
 
         function loadPlayers() {
             const position = document.getElementById('positionFilter').value;
@@ -507,14 +319,12 @@
             }
             
             let html = '<div class="players-horizontal-list">';
-            
-            sortedPlayers.forEach((player, index) => {
-                const isCustomized = player.is_customized || false;
-                const projectedPoints = isCustomized ? player.custom_projected_points : player.projected_points;
-                // Find the player's index in the original allPlayers array
-                const originalIndex = allPlayers.findIndex(p => p.name === player.name);
+
+            sortedPlayers.forEach((player) => {
+                const isStarred = player.is_starred || false;
+                const escapedName = player.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 html += `
-                    <div class="player-row ${isCustomized ? 'customized' : ''}">
+                    <div class="player-row">
                         <div class="player-main">
                             <span class="player-name">${player.name}</span>
                             <span class="badge position-badge bg-primary ms-2">${player.position}</span>
@@ -527,13 +337,9 @@
                             </div>
                         </div>
                         <div class="d-flex align-items-center ms-auto">
-                            <div class="customization-banner me-3">
-                                <span class="badge ${isCustomized ? 'bg-success' : 'bg-secondary'}">
-                                    ${isCustomized ? 'Customized' : 'Standard'}
-                                </span>
-                            </div>
-                            ${isCustomized ? '<span class="customized-badge" title="Customized"><i class="fas fa-check-circle"></i></span>' : ''}
-                            ${customizationEnabled ? `<button class="edit-icon-btn" onclick="openEditModal(${originalIndex})" title="Edit"><i class="fas fa-edit"></i></button>` : ''}
+                            <span class="star-toggle ${isStarred ? 'starred' : ''}"
+                                  onclick="toggleStar('${escapedName}', this)"
+                                  title="${isStarred ? 'Starred - click to unstar' : 'Star this player'}"></span>
                         </div>
                     </div>
                 `;
@@ -543,266 +349,33 @@
             container.innerHTML = html;
         }
 
-        function openEditModal(index) {
-            currentEditingIndex = index;
-            const player = allPlayers[index];
-            
-            // Update modal title
-            document.getElementById('modalTitle').textContent = `Edit ${player.name} Stats`;
-            
-            // Generate stats editor HTML
-            const statsEditorHtml = getStatsEditor(player, index);
-            document.getElementById('modalBody').innerHTML = statsEditorHtml;
-            
-            // Show modal
-            document.getElementById('modalBackdrop').classList.add('show');
-            document.getElementById('editModal').classList.add('show');
-        }
-
-        function closeModal() {
-            document.getElementById('modalBackdrop').classList.remove('show');
-            document.getElementById('editModal').classList.remove('show');
-            currentEditingIndex = null;
-        }
-
-        function getStatsEditor(player, index) {
-            const stats = player.raw_stats || {};
-            let html = '<h6 class="mb-3">Edit Player Stats</h6>';
-            
-            switch(player.position) {
-                case 'QB':
-                    html += `
-                        <div class="stat-input">
-                            <label>Passing Yards:</label>
-                            <input type="number" class="form-control" id="passing_yards_${index}" value="${stats.passing_yards || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Passing TDs:</label>
-                            <input type="number" class="form-control" id="passing_tds_${index}" value="${stats.passing_tds || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Interceptions:</label>
-                            <input type="number" class="form-control" id="passing_ints_${index}" value="${stats.passing_ints || stats.interceptions || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Rushing Yards:</label>
-                            <input type="number" class="form-control" id="rushing_yards_${index}" value="${stats.rushing_yards || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Rushing TDs:</label>
-                            <input type="number" class="form-control" id="rushing_tds_${index}" value="${stats.rushing_tds || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Fumbles:</label>
-                            <input type="number" class="form-control" id="fumbles_${index}" value="${stats.fumbles || 0}">
-                        </div>
-                    `;
-                    break;
-                case 'RB':
-                    html += `
-                        <div class="stat-input">
-                            <label>Rushing Yards:</label>
-                            <input type="number" class="form-control" id="rushing_yards_${index}" value="${stats.rushing_yards || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Rushing TDs:</label>
-                            <input type="number" class="form-control" id="rushing_tds_${index}" value="${stats.rushing_tds || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Receptions:</label>
-                            <input type="number" class="form-control" id="receptions_${index}" value="${stats.receptions || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Receiving Yards:</label>
-                            <input type="number" class="form-control" id="receiving_yards_${index}" value="${stats.receiving_yards || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Receiving TDs:</label>
-                            <input type="number" class="form-control" id="receiving_tds_${index}" value="${stats.receiving_tds || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Fumbles:</label>
-                            <input type="number" class="form-control" id="fumbles_${index}" value="${stats.fumbles || 0}">
-                        </div>
-                    `;
-                    break;
-                case 'WR':
-                case 'TE':
-                    html += `
-                        <div class="stat-input">
-                            <label>Receptions:</label>
-                            <input type="number" class="form-control" id="receptions_${index}" value="${stats.receptions || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Receiving Yards:</label>
-                            <input type="number" class="form-control" id="receiving_yards_${index}" value="${stats.receiving_yards || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Receiving TDs:</label>
-                            <input type="number" class="form-control" id="receiving_tds_${index}" value="${stats.receiving_tds || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Rushing Yards:</label>
-                            <input type="number" class="form-control" id="rushing_yards_${index}" value="${stats.rushing_yards || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Rushing TDs:</label>
-                            <input type="number" class="form-control" id="rushing_tds_${index}" value="${stats.rushing_tds || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Fumbles:</label>
-                            <input type="number" class="form-control" id="fumbles_${index}" value="${stats.fumbles || 0}">
-                        </div>
-                    `;
-                    break;
-                case 'K':
-                    html += `
-                        <div class="stat-input">
-                            <label>Field Goals:</label>
-                            <input type="number" class="form-control" id="field_goals_${index}" value="${stats.field_goals || 0}">
-                        </div>
-                        <div class="stat-input">
-                            <label>Extra Points:</label>
-                            <input type="number" class="form-control" id="extra_points_${index}" value="${stats.extra_points || 0}">
-                        </div>
-                    `;
-                    break;
-                case 'DST':
-                case 'DEF':
-                    html += `
-                        <div class="stat-input">
-                            <label>Season Points:</label>
-                            <input type="number" class="form-control" id="season_points_${index}" value="${stats.season_points || stats.dst_points || player.projected_points || 0}">
-                        </div>
-                    `;
-                    break;
-            }
-            
-            return html;
-        }
-
-        function savePlayerStats() {
-            if (currentEditingIndex === null) return;
-
-            const player = allPlayers[currentEditingIndex];
-            const stats = {};
-
-            // Add position to stats
-            stats.position = player.position;
-
-            // Collect all stat inputs for this player
-            const inputs = document.querySelectorAll('#modalBody input');
-            inputs.forEach(input => {
-                const statName = input.id.split('_').slice(0, -1).join('_');
-                stats[statName] = parseFloat(input.value) || 0;
-            });
-
-            const requestData = {
-                player_name: player.name,
-                position: player.position,
-                custom_stats: stats
-            };
-
-            // Save to backend
-            fetch('/api/save_custom_projection', {
+        function toggleStar(playerName, dotEl) {
+            fetch('/api/toggle_star_player', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(requestData)
+                body: JSON.stringify({ player_name: playerName })
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success) {
-                    // Reload players to get fresh data from server
-                    loadPlayers();
-
-                    // Close modal
-                    closeModal();
-
-                    // Show success message
-                    showNotification('Changes saved successfully!', 'success');
-                } else {
-                    showNotification('Error saving changes: ' + data.error, 'error');
+                if (!data.success) {
+                    showNotification('Error updating star: ' + data.error, 'error');
+                    return;
                 }
+
+                dotEl.classList.toggle('starred', data.starred);
+                dotEl.title = data.starred ? 'Starred - click to unstar' : 'Star this player';
+
+                // Keep local player data in sync so re-sorting/filtering doesn't lose it
+                [allPlayers, filteredPlayers].forEach(list => {
+                    const player = list.find(p => p.name === playerName);
+                    if (player) player.is_starred = data.starred;
+                });
             })
             .catch(error => {
-                console.error('Fetch error:', error);
-                showNotification('Error saving changes: ' + error.message, 'error');
+                showNotification('Error updating star: ' + error.message, 'error');
             });
-        }
-
-        function resetPlayerStats() {
-            if (currentEditingIndex === null) return;
-            
-            const player = allPlayers[currentEditingIndex];
-            
-            fetch('/api/reset_custom_projection', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    player_name: player.name
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Reset local player data to original values
-                    player.is_customized = false;
-                    player.custom_projected_points = null;
-                    
-                    // Reload players to get fresh data from server
-                    loadPlayers();
-                    
-                    // Close modal
-                    closeModal();
-                    
-                    // Show success message
-                    showNotification('Player stats reset to original values!', 'success');
-                } else {
-                    showNotification('Error resetting stats: ' + data.error, 'error');
-                }
-            })
-            .catch(error => {
-                showNotification('Error resetting stats: ' + error.message, 'error');
-            });
-        }
-
-        function calculatePPRPoints(stats, pprMultiplier) {
-            let points = 0;
-            
-            // Passing points (for QBs)
-            if (stats.passing_yards) points += stats.passing_yards * 0.04;
-            if (stats.passing_tds) points += stats.passing_tds * 4;
-            if (stats.interceptions) points += stats.interceptions * -2;  // QB interceptions are negative
-            
-            // Rushing points
-            if (stats.rushing_yards) points += stats.rushing_yards * 0.1;
-            if (stats.rushing_tds) points += stats.rushing_tds * 6;
-            
-            // Receiving points with PPR
-            if (stats.receiving_yards) points += stats.receiving_yards * 0.1;
-            if (stats.receiving_tds) points += stats.receiving_tds * 6;
-            if (stats.receptions) points += stats.receptions * pprMultiplier;
-            
-            // Fumbles
-            if (stats.fumbles) points += stats.fumbles * -2;
-            
-            // Kicking points
-            if (stats.field_goals_made) points += stats.field_goals_made * 3;
-            if (stats.extra_points_made) points += stats.extra_points_made * 1;
-            
-            // Defense points (for DST - separate from QB interceptions)
-            if (stats.sacks) points += stats.sacks * 1;
-            if (stats.interceptions) points += stats.interceptions * 2;  // DST interceptions are positive
-            if (stats.fumble_recoveries) points += stats.fumble_recoveries * 2;
-            if (stats.forced_fumbles) points += stats.forced_fumbles * 2;
-            if (stats.defensive_tds) points += stats.defensive_tds * 6;
-            if (stats.safeties) points += stats.safeties * 2;
-            
-            return Math.round(points * 10) / 10;
         }
 
         function showNotification(message, type) {
@@ -847,22 +420,7 @@
 
         // Load players on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Initial load with all positions
             loadPlayers();
-            
-            // Add event listeners for modal
-            document.getElementById('modalBackdrop').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    closeModal();
-                }
-            });
-            
-            // Close modal on Escape key
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    closeModal();
-                }
-            });
         });
 
         function resetAllPlayerData() {

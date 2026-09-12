@@ -1284,10 +1284,14 @@
                 // Escape the player name for JavaScript
                 const escapedName = rec.name.replace(/'/g, "\\'").replace(/"/g, '\\"');
                 
+                const starredDot = rec.is_starred
+                    ? '<span class="starred-pick-dot" title="Starred on the pre-draft page"></span>'
+                    : '';
+
                 html += `
                     <div class="list-group-item d-flex justify-content-between align-items-center">
                         <div>
-                            <strong>${rec.name}</strong> (${rec.position}, ${rec.team})
+                            ${starredDot}<strong>${rec.name}</strong> (${rec.position}, ${rec.team})
                             <br>
                             <small class="text-muted">
                                 ADP: ${rec.adp.toFixed(1)} | Proj: ${rec.projected_points.toFixed(1)} pts
