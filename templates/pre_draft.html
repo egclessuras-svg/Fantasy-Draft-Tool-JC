@@ -302,11 +302,6 @@
                             <h2><span class="hal-eye me-2"></span>Pre Draft Analysis</h2>
                             <p class="mb-0">Analyze and customize player projections before the draft</p>
                         </div>
-                        <div class="col-md-4 text-end">
-                            <a href="/logout" class="btn btn-outline-light btn-sm">
-                                <i class="fas fa-sign-out-alt me-1"></i>Logout
-                            </a>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -688,73 +683,52 @@
 
         function savePlayerStats() {
             if (currentEditingIndex === null) return;
-            
-            // Check if user is authenticated first
-            fetch('/api/auth/check')
+
+            const player = allPlayers[currentEditingIndex];
+            const stats = {};
+
+            // Add position to stats
+            stats.position = player.position;
+
+            // Collect all stat inputs for this player
+            const inputs = document.querySelectorAll('#modalBody input');
+            inputs.forEach(input => {
+                const statName = input.id.split('_').slice(0, -1).join('_');
+                stats[statName] = parseFloat(input.value) || 0;
+            });
+
+            const requestData = {
+                player_name: player.name,
+                position: player.position,
+                custom_stats: stats
+            };
+
+            // Save to backend
+            fetch('/api/save_custom_projection', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            })
             .then(response => response.json())
-            .then(authData => {
-                console.log('Auth check:', authData);
-                if (!authData.authenticated) {
-                    showNotification('Please log in to save custom projections', 'error');
-                    return;
+            .then(data => {
+                if (data.success) {
+                    // Reload players to get fresh data from server
+                    loadPlayers();
+
+                    // Close modal
+                    closeModal();
+
+                    // Show success message
+                    showNotification('Changes saved successfully!', 'success');
+                } else {
+                    showNotification('Error saving changes: ' + data.error, 'error');
                 }
-                
-                const player = allPlayers[currentEditingIndex];
-                const stats = {};
-                
-                // Add position to stats
-                stats.position = player.position;
-                
-                // Collect all stat inputs for this player
-                const inputs = document.querySelectorAll('#modalBody input');
-                inputs.forEach(input => {
-                    const statName = input.id.split('_').slice(0, -1).join('_');
-                    stats[statName] = parseFloat(input.value) || 0;
-                });
-                
-                // Debug: Log what we're sending
-                const requestData = {
-                    player_name: player.name,
-                    position: player.position,
-                    custom_stats: stats
-                };
-                console.log('Sending data to save:', requestData);
-                
-                // Save to backend
-                fetch('/api/save_custom_projection', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(requestData)
-                })
-                .then(response => {
-                    console.log('Response status:', response.status);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Response data:', data);
-                    if (data.success) {
-                        // Reload players to get fresh data from server
-                        loadPlayers();
-                        
-                        // Close modal
-                        closeModal();
-                        
-                        // Show success message
-                        showNotification('Changes saved successfully!', 'success');
-                    } else {
-                        showNotification('Error saving changes: ' + data.error, 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error:', error);
-                    showNotification('Error saving changes: ' + error.message, 'error');
-                });
             })
             .catch(error => {
-                console.error('Auth check error:', error);
-                showNotification('Authentication error', 'error');
+                console.error('Fetch error:', error);
+                showNotification('Error saving changes: ' + error.message, 'error');
             });
         }
 

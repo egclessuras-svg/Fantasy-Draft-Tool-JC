@@ -272,11 +272,6 @@
                     <h1 class="mb-0"><span class="hal-eye me-2"></span>User Profile</h1>
                     <p class="mb-0">Manage your account and view your completed drafts</p>
                 </div>
-                <div class="col-md-4 text-end">
-                    <button class="btn btn-outline-light" onclick="logout()">
-                        <i class="fas fa-sign-out-alt me-2"></i>Logout
-                    </button>
-                </div>
             </div>
         </div>
 
@@ -590,24 +585,6 @@
 
         // Make saveDraftAndRedirect globally available
         window.saveDraftAndRedirect = saveDraftAndRedirect;
-
-        async function logout() {
-            try {
-                const response = await fetch('/api/auth/logout');
-                const data = await response.json();
-                
-                if (data.success) {
-                    showAlert('Logout successful! Redirecting...', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/login';
-                    }, 1000);
-                } else {
-                    showAlert('Logout failed', 'danger');
-                }
-            } catch (error) {
-                showAlert('Error during logout', 'danger');
-            }
-        }
 
         function showAlert(message, type) {
             const alertContainer = document.getElementById('alertContainer');

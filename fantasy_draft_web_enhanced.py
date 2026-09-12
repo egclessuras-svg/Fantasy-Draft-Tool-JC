@@ -1,11 +1,10 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect
 from fantasy_draft_assistant_v2_clean import FantasyDraftAssistant
 import json
 import os
 import random
 from supabase import create_client, Client
 from dotenv import load_dotenv
-from functools import wraps
 import pandas as pd
 from datetime import datetime
 from supabase_manager import supabase_manager
@@ -16,6 +15,17 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = 'james_clessuras_ff_secret_key_2024'
+
+# This app is built for a single user - no login/accounts. Every session is
+# stamped with the same fixed identity so existing per-user persistence
+# (Supabase custom projections, saved drafts) keeps working unchanged.
+DEFAULT_USER_ID = str(uuid.uuid5(uuid.NAMESPACE_DNS, 'default-user@pickprophet.local'))
+DEFAULT_USER_EMAIL = 'default-user@pickprophet.local'
+
+@app.before_request
+def ensure_default_user():
+    session.setdefault('user_id', DEFAULT_USER_ID)
+    session.setdefault('user_email', DEFAULT_USER_EMAIL)
 
 # League settings are fixed for this league - not user-configurable.
 LEAGUE_NUM_TEAMS = 8
@@ -150,14 +160,6 @@ def load_players_globally():
         return []
 
 # Custom projections functions removed
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
 
 def get_draft_assistant():
     """Get or create the draft assistant instance."""
@@ -467,234 +469,25 @@ def health_check():
 
 @app.route('/')
 def root():
-    """Root route - redirect to login if not authenticated, app if authenticated."""
-    if 'user_id' in session:
-        return redirect('/app')
-    else:
-        return redirect('/login')
+    """Root route - single-user app, always go straight to the draft room."""
+    return redirect('/app')
 
 @app.route('/app')
-@login_required
 def index():
     """Main page for the fantasy draft assistant."""
     return render_template('index.html')
 
-@app.route('/login')
-def login():
-    """Login page."""
-    return render_template('login.html')
-
-@app.route('/register')
-def register():
-    """Register page."""
-    return render_template('register.html')
-
 @app.route('/user')
-@login_required
 def user_profile():
     """User profile page."""
     return render_template('user.html')
 
 @app.route('/pre-draft')
-@login_required
 def pre_draft():
     """Pre-draft analysis page."""
     return render_template('pre_draft.html')
 
-@app.route('/api/auth/login', methods=['POST'])
-def auth_login():
-    """Handle user login."""
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
-        
-        if not email or not password:
-            return jsonify({'success': False, 'error': 'Email and password required'}), 400
-        
-        if not supabase:
-            # Development mode - generate unique user ID based on email
-            import uuid
-            user_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, email))
-            session['user_id'] = user_uuid
-            session['user_email'] = email
-            
-            # Clear cache for new user login
-            # Custom projections disabled
-            print(f"Cleared cache for new user login: {user_uuid}")
-            
-            # In development mode, we can't create users in Supabase, so we'll handle this differently
-            # The user will be able to use the app but custom projections won't be saved to Supabase
-            
-            return jsonify({
-                'success': True,
-                'message': 'Login successful (development mode - custom projections saved locally only)',
-                'user': {
-                    'id': user_uuid,
-                    'email': email
-                }
-            })
-        
-        # Production mode - Supabase authentication
-        try:
-            response = supabase.auth.sign_in_with_password({
-                "email": email,
-                "password": password
-            })
-            
-            user = response.user
-            session['user_id'] = user.id
-            session['user_email'] = user.email
-            
-            # Clear cache for new user login
-            # Custom projections disabled
-            print(f"Cleared cache for new user login: {user.id}")
-            
-            # Ensure user exists in the users table
-            try:
-                # Check if user exists in users table
-                result = supabase.table('users').select('*').eq('id', user.id).execute()
-                if not result.data:
-                    # User doesn't exist in users table, create them
-                    supabase.table('users').insert({
-                        'id': user.id,
-                        'email': user.email,
-                        'created_at': user.created_at
-                    }).execute()
-                    print(f"Created missing user record in users table for {user.id}")
-            except Exception as user_table_error:
-                print(f"Warning: Could not check/create user record in users table: {user_table_error}")
-                # Continue anyway - the user is still authenticated
-            
-            return jsonify({
-                'success': True,
-                'message': 'Login successful',
-                'user': {
-                    'id': user.id,
-                    'email': user.email
-                }
-            })
-        except Exception as auth_error:
-            # Handle specific Supabase auth errors
-            error_message = str(auth_error)
-            if "Invalid login credentials" in error_message:
-                return jsonify({'success': False, 'error': 'Invalid email or password'}), 401
-            elif "Email not confirmed" in error_message:
-                return jsonify({'success': False, 'error': 'Please check your email and confirm your account'}), 401
-            else:
-                return jsonify({'success': False, 'error': 'Authentication failed. Please try again.'}), 401
-                
-    except Exception as e:
-        return jsonify({'success': False, 'error': 'An error occurred during login'}), 500
-
-@app.route('/api/auth/register', methods=['POST'])
-def auth_register():
-    """Handle user registration."""
-    try:
-        data = request.get_json()
-        email = data.get('email')
-        password = data.get('password')
-        
-        if not email or not password:
-            return jsonify({'success': False, 'error': 'Email and password required'}), 400
-        
-        if len(password) < 6:
-            return jsonify({'success': False, 'error': 'Password must be at least 6 characters long'}), 400
-        
-        if not supabase:
-            # Development mode - generate unique user ID based on email
-            import uuid
-            user_uuid = str(uuid.uuid5(uuid.NAMESPACE_DNS, email))
-            session['user_id'] = user_uuid
-            session['user_email'] = email
-            
-            # Clear cache for new user registration
-            # Custom projections disabled
-            print(f"Cleared cache for new user registration: {user_uuid}")
-            
-            return jsonify({
-                'success': True,
-                'message': 'Registration successful (development mode)',
-                'user': {
-                    'id': user_uuid,
-                    'email': email
-                }
-            })
-        
-        # Production mode - Supabase registration
-        try:
-            response = supabase.auth.sign_up({
-                "email": email,
-                "password": password
-            })
-            
-            user = response.user
-            session['user_id'] = user.id
-            session['user_email'] = user.email
-            
-            # Clear cache for new user registration
-            # Custom projections disabled
-            print(f"Cleared cache for new user registration: {user.id}")
-            
-            # Also create a record in the users table
-            try:
-                supabase.table('users').insert({
-                    'id': user.id,
-                    'email': user.email,
-                    'created_at': user.created_at
-                }).execute()
-                print(f"Created user record in users table for {user.id}")
-            except Exception as user_table_error:
-                print(f"Warning: Could not create user record in users table: {user_table_error}")
-                # Continue anyway - the user is still registered in auth
-            
-            return jsonify({
-                'success': True,
-                'message': 'Registration successful! Please check your email to confirm your account.',
-                'user': {
-                    'id': user.id,
-                    'email': user.email
-                }
-            })
-        except Exception as auth_error:
-            # Handle specific Supabase registration errors
-            error_message = str(auth_error)
-            if "User already registered" in error_message:
-                return jsonify({'success': False, 'error': 'An account with this email already exists'}), 400
-            elif "Password should be at least" in error_message:
-                return jsonify({'success': False, 'error': 'Password must be at least 6 characters long'}), 400
-            elif "Invalid email" in error_message:
-                return jsonify({'success': False, 'error': 'Please enter a valid email address'}), 400
-            else:
-                return jsonify({'success': False, 'error': 'Registration failed. Please try again.'}), 400
-                
-    except Exception as e:
-        return jsonify({'success': False, 'error': 'An error occurred during registration'}), 500
-
-@app.route('/logout')
-def logout():
-    """Handle user logout and redirect to login page."""
-    # Clear user-specific cache before clearing session
-    if 'user_id' in session:
-        user_id = session['user_id']
-        print(f"Clearing cache for user {user_id} during logout")
-        # Custom projections disabled
-    session.clear()
-    return redirect(url_for('login'))
-
-@app.route('/api/auth/logout')
-def auth_logout():
-    """Handle user logout via API."""
-    # Clear user-specific cache before clearing session
-    if 'user_id' in session:
-        user_id = session['user_id']
-        print(f"Clearing cache for user {user_id} during logout")
-        # Custom projections disabled
-    session.clear()
-    return jsonify({'success': True, 'message': 'Logout successful'})
-
 @app.route('/api/user/custom_projections')
-@login_required
 def get_user_custom_projections():
     """Get user's custom projections."""
     try:
@@ -721,7 +514,6 @@ def get_user_custom_projections():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/user/save_custom_projection', methods=['POST'])
-@login_required
 def save_user_custom_projection():
     """Save user's custom projection for a player."""
     try:
@@ -778,7 +570,6 @@ def save_user_custom_projection():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/user/draft_sessions')
-@login_required
 def get_user_draft_sessions():
     """Get user's draft sessions."""
     try:
@@ -801,7 +592,6 @@ def get_user_draft_sessions():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/user/save_draft_session', methods=['POST'])
-@login_required
 def save_user_draft_session():
     """Save user's draft session."""
     try:
@@ -838,7 +628,6 @@ def save_user_draft_session():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/save_completed_draft', methods=['POST'])
-@login_required
 def save_completed_draft():
     """Save the current draft session with a custom name when draft is complete - with actual data."""
     try:
@@ -2119,7 +1908,6 @@ def get_user_roster():
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/user/roster')
-@login_required
 def get_user_roster_detailed():
     """Get user's roster with starter/bench separation and projections."""
     try:
@@ -2893,7 +2681,6 @@ def calculate_custom_points(position, stats):
     return round(points, 1)
 
 @app.route('/api/user/export_data')
-@login_required
 def export_user_data():
     """Export all user data."""
     try:
@@ -2933,7 +2720,6 @@ def export_user_data():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/user/clear_data', methods=['POST'])
-@login_required
 def clear_user_data():
     """Clear all user data."""
     try:
@@ -3023,7 +2809,6 @@ def force_cache_reload():
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/save_draft', methods=['POST'])
-@login_required
 def save_draft():
     """Save the current draft session to local JSON file with actual draft data."""
     try:
@@ -3094,7 +2879,6 @@ def save_draft():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/user/info')
-@login_required
 def get_user_info():
     """Get user information."""
     try:
@@ -3113,7 +2897,6 @@ def get_user_info():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/user/completed_drafts')
-@login_required
 def get_completed_drafts():
     """Get user's completed drafts from local JSON file."""
     try:
@@ -3187,7 +2970,6 @@ def get_completed_drafts():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/draft/delete/<session_id>', methods=['DELETE'])
-@login_required
 def delete_draft(session_id):
     """Delete a draft session from local JSON file."""
     try:
@@ -3224,7 +3006,6 @@ def delete_draft(session_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/draft/<session_id>')
-@login_required
 def get_draft_details(session_id):
     """Get detailed information about a specific draft from local JSON file."""
     try:
@@ -3280,28 +3061,6 @@ def save_completed_drafts_to_file(completed_drafts):
         print(f"Saved {len(completed_drafts)} completed drafts to file")
     except Exception as e:
         print(f"Error saving completed drafts: {e}")
-
-@app.route('/api/auth/user')
-def get_current_user():
-    """Get current user information."""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
-    
-    return jsonify({
-        'success': True,
-        'user': {
-            'id': session.get('user_id'),
-            'email': session.get('user_email')
-        }
-    })
-
-@app.route('/api/auth/check')
-def check_auth():
-    """Check if user is authenticated."""
-    if 'user_id' in session:
-        return jsonify({'authenticated': True, 'user_id': session['user_id']})
-    else:
-        return jsonify({'authenticated': False}), 401
 
 def load_user_custom_projections_from_supabase(user_id):
     """Load custom projections for a specific user from Supabase."""
