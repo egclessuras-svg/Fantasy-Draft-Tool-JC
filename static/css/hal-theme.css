@@ -1,0 +1,478 @@
+/* ==========================================================================
+   HAL-9000 / Discovery One theme
+   Palette, type, and component overrides shared by every page.
+   Signature element: the pulsing red "eye" (.hal-eye) - used sparingly,
+   in the header mark and as the loading indicator.
+   ========================================================================== */
+
+:root {
+  --void: #050505;
+  --panel: #0c0d10;
+  --panel-raised: #15171b;
+  --hairline: #2a2d33;
+  --steel: #4a4e56;
+
+  --hal-red: #ff2f1a;
+  --hal-red-soft: #ff5a3c;
+  --hal-red-deep: #7a1710;
+  --hal-red-dim: #4a1710;
+  --hal-amber: #ffab1f;
+
+  --text: #e9e6df;
+  --text-dim: #93969d;
+  --text-faint: #5b5e64;
+
+  --font-display: 'Michroma', 'Arial Narrow', sans-serif;
+  --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+
+  --glow-sm: 0 0 6px rgba(255, 47, 26, 0.55);
+  --glow-md: 0 0 16px rgba(255, 47, 26, 0.45), 0 0 2px rgba(255, 47, 26, 0.8);
+  --glow-lg: 0 0 32px rgba(255, 47, 26, 0.35);
+}
+
+/* -------------------------------------------------------------------------
+   Grid-light texture (the corridor wall from the reference still) - used
+   only as a decorative band, never behind body copy.
+   ------------------------------------------------------------------------- */
+.hal-grid-band {
+  background-color: var(--void);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(255, 47, 26, 0.16) 0 6px, transparent 6px 26px),
+    repeating-linear-gradient(0deg, rgba(255, 47, 26, 0.10) 0 3px, transparent 3px 18px);
+  background-position: center;
+}
+
+/* Faint ambient version for the page background - kept extremely low
+   contrast so it never competes with content. */
+body.hal-theme {
+  background-color: var(--void);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(255, 47, 26, 0.028) 0 2px, transparent 2px 34px);
+  background-attachment: fixed;
+}
+
+/* -------------------------------------------------------------------------
+   Base
+   ------------------------------------------------------------------------- */
+body.hal-theme {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+.hal-theme h1, .hal-theme h2, .hal-theme h3, .hal-theme h4, .hal-theme h5, .hal-theme h6 {
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.hal-theme a { color: var(--hal-red-soft); }
+.hal-theme a:hover { color: var(--hal-red); }
+
+.hal-theme ::selection { background: var(--hal-red-deep); color: var(--text); }
+
+.hal-theme small, .hal-theme .text-muted { color: var(--text-dim) !important; }
+
+/* Scrollbar */
+.hal-theme ::-webkit-scrollbar { width: 10px; height: 10px; }
+.hal-theme ::-webkit-scrollbar-track { background: var(--void); }
+.hal-theme ::-webkit-scrollbar-thumb { background: var(--hal-red-deep); border: 2px solid var(--void); }
+
+/* -------------------------------------------------------------------------
+   Signature element: the HAL eye
+   ------------------------------------------------------------------------- */
+.hal-eye {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff 0%, var(--hal-red-soft) 28%, var(--hal-red) 55%, var(--hal-red-deep) 100%);
+  box-shadow: var(--glow-md);
+  animation: hal-breathe 4s ease-in-out infinite;
+  vertical-align: middle;
+}
+.hal-eye.hal-eye-lg { width: 56px; height: 56px; }
+.hal-eye.hal-eye-fast { animation-duration: 1.1s; }
+
+@keyframes hal-breathe {
+  0%, 100% { box-shadow: var(--glow-sm); opacity: 0.88; }
+  50% { box-shadow: var(--glow-lg); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hal-eye { animation: none; box-shadow: var(--glow-md); }
+}
+
+/* Loading indicator replacement: hide spinner icons, show an eye instead */
+.hal-theme .fa-spinner {
+  visibility: hidden;
+  position: relative;
+}
+.hal-theme .fa-spinner::before {
+  visibility: visible;
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff 0%, var(--hal-red-soft) 30%, var(--hal-red) 60%, var(--hal-red-deep) 100%);
+  box-shadow: 0 0 8px rgba(255, 47, 26, 0.8);
+  animation: hal-breathe 1.1s ease-in-out infinite;
+}
+
+/* -------------------------------------------------------------------------
+   Header / hero band
+   ------------------------------------------------------------------------- */
+.hal-theme .draft-status,
+.hal-theme .header-banner,
+.hal-theme .gradient-bg {
+  background: var(--void) !important;
+  background-image:
+    linear-gradient(180deg, rgba(255,47,26,0.10), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(255, 47, 26, 0.14) 0 5px, transparent 5px 24px) !important;
+  border-bottom: 1px solid var(--hal-red-deep);
+  border-radius: 0 !important;
+  color: var(--text) !important;
+  box-shadow: inset 0 -18px 24px -18px rgba(0,0,0,0.8);
+}
+.hal-theme .draft-status h1,
+.hal-theme .draft-status h2,
+.hal-theme .draft-status h3,
+.hal-theme .draft-status h4,
+.hal-theme .draft-status h5 {
+  text-shadow: var(--glow-sm);
+}
+.hal-theme .draft-status a { color: var(--hal-red-soft) !important; }
+
+/* Readout / scoreboard numerals */
+.hal-readout {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  color: var(--hal-amber);
+  text-shadow: 0 0 8px rgba(255, 171, 31, 0.55);
+}
+
+/* Progress bar -> LED strip */
+.hal-theme .progress {
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 0;
+}
+.hal-theme .progress-bar {
+  background: linear-gradient(90deg, var(--hal-red-deep), var(--hal-red));
+  box-shadow: var(--glow-sm);
+}
+
+/* -------------------------------------------------------------------------
+   Cards / panels
+   ------------------------------------------------------------------------- */
+.hal-theme .card {
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 0;
+  border-top: 2px solid var(--hal-red-deep);
+  color: var(--text);
+}
+.hal-theme .card-header {
+  background: #0a0b0d;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--text);
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+.hal-theme .card-header i { color: var(--hal-red); }
+.hal-theme .card-body { background: transparent; }
+
+.hal-theme .content-card,
+.hal-theme .username-section {
+  background: var(--panel) !important;
+  border-radius: 0 !important;
+  border: 1px solid var(--hairline) !important;
+  border-top: 2px solid var(--hal-red-deep) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+.hal-theme .nav-tabs { border-bottom-color: var(--hairline); }
+.hal-theme .nav-tabs .nav-link {
+  border-radius: 0 !important;
+  color: var(--text-dim) !important;
+  background: transparent !important;
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+.hal-theme .nav-tabs .nav-link.active {
+  background: var(--hal-red-dim) !important;
+  color: var(--text) !important;
+  border-color: var(--hal-red-deep) !important;
+  box-shadow: var(--glow-sm);
+}
+.hal-theme .nav-tabs .nav-link:hover {
+  background: var(--panel-raised) !important;
+  color: var(--hal-red-soft) !important;
+}
+
+.hal-theme .recommendation-card,
+.hal-theme .player-card {
+  background: var(--panel-raised);
+  border: 1px solid var(--hairline);
+  border-left: 3px solid var(--hal-red-deep);
+  border-radius: 0;
+  color: var(--text);
+}
+.hal-theme .recommendation-card:hover,
+.hal-theme .player-card:hover {
+  border-left-color: var(--hal-red);
+  box-shadow: var(--glow-sm);
+}
+
+.hal-theme .roster-slot {
+  background: var(--panel-raised);
+  border: 1px dashed var(--hairline);
+  border-radius: 0;
+}
+.hal-theme .roster-slot.filled { border-style: solid; border-color: var(--hal-red-deep); }
+.hal-theme .roster-slot.empty { color: var(--text-faint); }
+
+/* -------------------------------------------------------------------------
+   Buttons
+   ------------------------------------------------------------------------- */
+.hal-theme .btn {
+  border-radius: 0;
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  border-width: 1px;
+}
+.hal-theme .btn-primary,
+.hal-theme .btn-success,
+.hal-theme .btn-danger,
+.hal-theme .btn-warning,
+.hal-theme .btn-info {
+  background: var(--hal-red-dim);
+  border-color: var(--hal-red-deep);
+  color: var(--text);
+}
+.hal-theme .btn-primary:hover,
+.hal-theme .btn-success:hover,
+.hal-theme .btn-danger:hover,
+.hal-theme .btn-warning:hover,
+.hal-theme .btn-info:hover,
+.hal-theme .btn-primary:focus,
+.hal-theme .btn-success:focus {
+  background: var(--hal-red);
+  border-color: var(--hal-red);
+  color: #fff;
+  box-shadow: var(--glow-sm);
+}
+.hal-theme .btn-outline-primary,
+.hal-theme .btn-outline-secondary,
+.hal-theme .btn-outline-info,
+.hal-theme .btn-outline-warning,
+.hal-theme .btn-outline-success {
+  background: transparent;
+  border-color: var(--steel);
+  color: var(--text-dim);
+}
+.hal-theme .btn-outline-primary:hover,
+.hal-theme .btn-outline-secondary:hover,
+.hal-theme .btn-outline-info:hover,
+.hal-theme .btn-outline-warning:hover,
+.hal-theme .btn-outline-success:hover {
+  background: var(--hal-red-dim);
+  border-color: var(--hal-red);
+  color: var(--text);
+}
+.hal-theme .btn:disabled { opacity: 0.4; }
+.hal-theme .btn:focus-visible, .hal-theme a:focus-visible, .hal-theme input:focus-visible {
+  outline: 2px solid var(--hal-red);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------------------
+   Forms
+   ------------------------------------------------------------------------- */
+.hal-theme .form-control,
+.hal-theme .form-select,
+.hal-theme input[type="text"],
+.hal-theme input[type="email"],
+.hal-theme input[type="password"],
+.hal-theme input[type="number"] {
+  background: var(--panel);
+  border: 1px solid var(--hairline);
+  border-radius: 0;
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+.hal-theme .form-control:focus,
+.hal-theme .form-select:focus {
+  background: var(--panel);
+  border-color: var(--hal-red);
+  color: var(--text);
+  box-shadow: var(--glow-sm);
+}
+.hal-theme .form-control::placeholder { color: var(--text-faint); }
+.hal-theme .form-label { color: var(--text-dim); font-family: var(--font-display); font-size: 0.75rem; letter-spacing: 0.05em; text-transform: uppercase; }
+.hal-theme label { color: var(--text-dim); }
+
+/* -------------------------------------------------------------------------
+   Alerts / badges / lists
+   ------------------------------------------------------------------------- */
+.hal-theme .alert {
+  border-radius: 0;
+  background: var(--panel-raised);
+  border: 1px solid var(--hal-red-deep);
+  color: var(--text);
+}
+.hal-theme .alert-info { border-color: var(--steel); }
+.hal-theme .alert-success { border-color: var(--hal-red-deep); }
+.hal-theme .alert-danger { border-color: var(--hal-red); box-shadow: var(--glow-sm); }
+.hal-theme .alert-warning { border-color: var(--hal-amber); color: var(--hal-amber); }
+
+.hal-theme .badge { border-radius: 0; font-family: var(--font-mono); }
+.hal-theme .badge.bg-primary,
+.hal-theme .badge.bg-success,
+.hal-theme .badge.bg-info,
+.hal-theme .badge.bg-danger { background: var(--hal-red-dim) !important; border: 1px solid var(--hal-red-deep); }
+.hal-theme .badge.bg-warning { background: var(--hal-red-dim) !important; color: var(--hal-amber) !important; border: 1px solid var(--hal-amber); }
+.hal-theme .badge.bg-secondary { background: var(--panel-raised) !important; border: 1px solid var(--hairline); color: var(--text-dim) !important; }
+
+.hal-theme .list-group-item {
+  background: var(--panel-raised);
+  border-color: var(--hairline);
+  color: var(--text);
+}
+.hal-theme .list-group-item:hover { background: #191b20; }
+
+.hal-theme table { color: var(--text); }
+.hal-theme .table { --bs-table-bg: transparent; --bs-table-color: var(--text); border-color: var(--hairline); }
+.hal-theme .table thead { font-family: var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; font-size: 0.75rem; color: var(--text-dim); }
+
+/* Nav / links used as tabs (Draft Room / Pre Draft / User) */
+.hal-theme ul li a,
+.hal-theme .nav-link {
+  color: var(--text-dim);
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+.hal-theme ul li a:hover,
+.hal-theme .nav-link:hover,
+.hal-theme .nav-link.active {
+  color: var(--hal-red-soft);
+}
+
+/* Modal */
+.hal-theme .modal-content {
+  background: var(--panel);
+  border: 1px solid var(--hal-red-deep);
+  border-radius: 0;
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------------
+   Auth pages (login / register) - semantic classes, not fighting Tailwind's
+   utility classes directly.
+   ------------------------------------------------------------------------- */
+.hal-auth-card {
+  background: var(--panel);
+  border: 1px solid var(--hal-red-deep);
+  box-shadow: var(--glow-md);
+}
+.hal-auth-card h1 {
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  text-shadow: var(--glow-sm);
+}
+.hal-auth-card label {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.hal-auth-card input {
+  background: var(--void);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+  font-family: var(--font-mono);
+  width: 100%;
+}
+.hal-auth-card input:focus {
+  outline: none;
+  border-color: var(--hal-red);
+  box-shadow: var(--glow-sm);
+}
+.hal-subtle { color: var(--text-dim); }
+.hal-auth-card a { color: var(--hal-red-soft); font-weight: 600; }
+.hal-auth-card a:hover { color: var(--hal-red); }
+
+.hal-submit-btn {
+  background: var(--hal-red-dim);
+  border: 1px solid var(--hal-red-deep);
+  color: var(--text);
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.hal-submit-btn:hover {
+  background: var(--hal-red);
+  color: #fff;
+  box-shadow: var(--glow-sm);
+}
+
+.hal-error {
+  background: var(--panel-raised);
+  border: 1px solid var(--hal-red);
+  color: var(--hal-red-soft);
+}
+
+.hal-success {
+  background: var(--panel-raised);
+  border: 1px solid var(--hal-amber);
+  color: var(--hal-amber);
+}
+
+.hal-checkbox {
+  accent-color: var(--hal-red);
+}
+
+/* -------------------------------------------------------------------------
+   Tailwind pages (login / register) - override the specific utility
+   classes those templates use rather than fight specificity generally.
+   ------------------------------------------------------------------------- */
+.hal-theme.bg-white,
+.hal-theme .bg-white {
+  background: var(--panel) !important;
+  border: 1px solid var(--hal-red-deep);
+  box-shadow: var(--glow-md);
+}
+.hal-theme .text-gray-800 { color: var(--text) !important; font-family: var(--font-display); letter-spacing: 0.05em; }
+.hal-theme .text-gray-700,
+.hal-theme .text-gray-600 { color: var(--text-dim) !important; }
+.hal-theme .border-gray-300 { border-color: var(--hairline) !important; }
+.hal-theme input.border-gray-300 {
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+.hal-theme .focus\:ring-blue-500:focus { box-shadow: var(--glow-sm) !important; border-color: var(--hal-red) !important; }
+.hal-theme .bg-blue-500,
+.hal-theme .bg-blue-600 { background: var(--hal-red-dim) !important; border: 1px solid var(--hal-red-deep); font-family: var(--font-display); letter-spacing: 0.05em; text-transform: uppercase; }
+.hal-theme .hover\:bg-blue-600:hover,
+.hal-theme .hover\:bg-blue-700:hover { background: var(--hal-red) !important; box-shadow: var(--glow-sm); }
+.hal-theme .text-blue-600,
+.hal-theme .text-blue-500 { color: var(--hal-red-soft) !important; }
+.hal-theme .hover\:text-blue-800:hover { color: var(--hal-red) !important; }
+.hal-theme .text-red-500,
+.hal-theme .text-red-600 { color: var(--hal-amber) !important; }
