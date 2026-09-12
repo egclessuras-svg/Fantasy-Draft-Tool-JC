@@ -1707,9 +1707,15 @@ def calculate_roster_value_for_simulation_web_projections(assistant, roster, pro
     for player in sorted_players:
         pos = player.position
         
-        # Check if we can fill a starting position
+        # Check if we can fill a starting position. DST's slot count lives
+        # under the 'DEF' key in roster_constraints (players are tagged
+        # 'DST') - roster_constraints.get('DST', 0) always returned 0, so a
+        # DST was never recognized as a starter and always fell to bench,
+        # where it's worth exactly 0 (see calculate_bench_value_for_player_
+        # web_projections's DST case) - every DST silently contributed
+        # nothing to the score, no matter how good it projected.
         if pos in ['QB', 'K', 'DST']:
-            if filled_positions[pos] < assistant.roster_constraints.get(pos, 0):
+            if filled_positions[pos] < _position_starter_slots(assistant, pos):
                 starters.append(player)
                 filled_positions[pos] += 1
             else:
