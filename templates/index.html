@@ -874,8 +874,8 @@
                 `;
             }
 
-            // Update user roster
-            updateUserRoster(status.user_roster);
+            // User roster is rendered by displayUserRoster() from loadAllData(),
+            // using constraints the server sends - no local re-render needed here.
         }
 
         function showDraftCompletionBanner(message) {
@@ -951,83 +951,6 @@
             } catch (error) {
                 showAlert('Error saving draft: ' + error.message, 'danger');
             }
-        }
-
-        function updateUserRoster(roster) {
-            const rosterDiv = document.getElementById('userRoster');
-            
-            if (!roster || roster.length === 0) {
-                rosterDiv.innerHTML = '<p class="text-muted">No players drafted yet</p>';
-                return;
-            }
-
-            // Get roster constraints from the form
-            const rosterConstraints = {
-                'QB': parseInt(document.getElementById('rosterQB').value) || 1,
-                'RB': parseInt(document.getElementById('rosterRB').value) || 2,
-                'WR': parseInt(document.getElementById('rosterWR').value) || 2,
-                'TE': parseInt(document.getElementById('rosterTE').value) || 1,
-                'FLEX': parseInt(document.getElementById('rosterFLEX').value) || 1,
-                'K': parseInt(document.getElementById('rosterK').value) || 1,
-                'DEF': parseInt(document.getElementById('rosterDEF').value) || 1,
-                'BN': parseInt(document.getElementById('rosterBENCH').value) || 6
-            };
-
-            // Group players by position
-            const playersByPosition = {};
-            roster.forEach(player => {
-                if (!playersByPosition[player.position]) {
-                    playersByPosition[player.position] = [];
-                }
-                playersByPosition[player.position].push(player);
-            });
-
-            // Create roster layout
-            let rosterHtml = '<div class="roster-layout">';
-            
-            // Define the order and slots for each position
-            const positionOrder = ['QB', 'RB', 'WR', 'TE', 'FLEX', 'K', 'DEF', 'BN'];
-            
-            positionOrder.forEach(position => {
-                const maxSlots = rosterConstraints[position];
-                const players = playersByPosition[position] || [];
-                
-                rosterHtml += `<div class="position-group mb-2">`;
-                rosterHtml += `<h6 class="text-muted mb-1">${position} (${players.length}/${maxSlots})</h6>`;
-                
-                // Create slots for this position
-                for (let i = 0; i < maxSlots; i++) {
-                    const player = players[i];
-                    if (player) {
-                        rosterHtml += `
-                            <div class="roster-slot filled mb-1">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>${player.name}</strong>
-                                        <br>
-                                        <small class="text-muted">${player.team}</small>
-                                    </div>
-                                    <span class="badge bg-primary position-badge">${player.position}</span>
-                                </div>
-                                <small class="text-muted">ADP: ${player.adp.toFixed(1)} | Proj: ${player.projected_points.toFixed(1)}</small>
-                            </div>
-                        `;
-                    } else {
-                        rosterHtml += `
-                            <div class="roster-slot empty mb-1">
-                                <div class="text-muted text-center py-2">
-                                    <i class="fas fa-plus"></i> Empty ${position} Slot
-                                </div>
-                            </div>
-                        `;
-                    }
-                }
-                
-                rosterHtml += `</div>`;
-            });
-            
-            rosterHtml += '</div>';
-            rosterDiv.innerHTML = rosterHtml;
         }
 
         async function loadAvailablePlayers() {
