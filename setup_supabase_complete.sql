@@ -63,13 +63,6 @@ CREATE TABLE IF NOT EXISTS completed_drafts (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Insert the default user (egclessuras@gmail.com)
-INSERT INTO users (id, email, password_hash) VALUES (
-    'e7bfc87a-1b1d-5930-a014-9015e7556f80',
-    'egclessuras@gmail.com',
-    'JohnWall2'
-) ON CONFLICT (email) DO NOTHING;
-
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_user_custom_projections_user_id ON user_custom_projections(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_custom_projections_player_name ON user_custom_projections(player_name);
